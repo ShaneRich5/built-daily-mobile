@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "built-daily-mobile",
-    "slug": "built-daily-mobile",
+    "slug": "built-daily",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -37,6 +37,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6d40a207-3655-4cf3-9010-9b2829eb0e48"
+      }
+    },
+    "owner": "srich5"
   }
 }
