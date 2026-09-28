@@ -14,8 +14,10 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-function assertConfigured() {
-  const missing = Object.entries(firebaseConfig)
+// Takes the config rather than reading module state, so it is testable without
+// depending on which env vars happen to be set when the suite runs.
+export function assertConfigured(config: Record<string, string | undefined>) {
+  const missing = Object.entries(config)
     .filter(([, value]) => !value)
     .map(([key]) => key);
 
@@ -28,7 +30,7 @@ function assertConfigured() {
 }
 
 function createAuth(): Auth {
-  assertConfigured();
+  assertConfigured(firebaseConfig);
   const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
   // initializeAuth (not getAuth) so the session survives an app restart via AsyncStorage.
