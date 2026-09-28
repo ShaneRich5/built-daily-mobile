@@ -17,11 +17,21 @@ npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — re
 npx expo start              # start the dev server
 npx expo lint               # lint
 npx tsc --noEmit            # typecheck
+npm test                    # run the Jest suite once (jest --watchAll=false)
 npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
 ```
 
-Run lint and typecheck before declaring any task done.
+Run lint, typecheck, and the test suite before declaring any task done. CI (`.github/workflows/ci.yml`) runs the same three checks on every PR — a task isn't done if any of them fail there.
+
+## Code quality & testing
+
+- **Separate domain logic from UI.** `src/types/` for plain data types, `src/services/` for I/O (Firestore, network — the only place that imports the Firebase SDK), `src/app/` for route composition only. Screens and components call service functions; they don't talk to Firestore directly. This mirrors the web app's `lib/*-repository.ts` / `lib/*-mapper.ts` split and is what makes the domain layer testable without mocking Firestore in every test.
+- **Prefer pure functions for anything with logic** (computing derived fields, status transitions, formatting) — easy to unit test, easy to reason about.
+- **TypeScript strict mode stays on** (`tsconfig.json` `strict: true`). Don't loosen it to unblock a change; fix the type instead.
+- **Testing stack:** Jest with the `jest-expo` preset, `@testing-library/react-native` (**not** `react-test-renderer` — it doesn't support React 19+, which this project is on) for component tests. `@testing-library/react-native`'s `render()` is async in the installed version — always `await render(...)` before querying `screen`.
+- **E2E:** not set up yet. When it is, use Maestro via EAS Workflows (Expo's recommended E2E tool) — it requires a development build, not Expo Go, so it only affects CI build profiles, not the Expo Go link used for tester distribution.
+- Add tests alongside the code they cover (e.g. `foo.ts` + `foo.test.ts`), not as a separate backfill pass.
 
 ## Navigation & Routing
 
