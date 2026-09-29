@@ -26,7 +26,8 @@ Run lint, typecheck, and the test suite before declaring any task done. CI (`.gi
 
 ## Code quality & testing
 
-- **Separate domain logic from UI.** `src/types/` for plain data types, `src/services/` for I/O (Firestore, network — the only place that imports the Firebase SDK), `src/app/` for route composition only. Screens and components call service functions; they don't talk to Firestore directly. This mirrors the web app's `lib/*-repository.ts` / `lib/*-mapper.ts` split and is what makes the domain layer testable without mocking Firestore in every test.
+- **Separate domain logic from UI.** `src/types/` for plain data types, `src/services/` for I/O (Firestore, network — the only place that imports the Firebase SDK), `src/lib/` for pure domain and display helpers (no I/O, no React), `src/app/` for route composition only. Screens and components call service functions; they don't talk to Firestore directly. This mirrors the web app's `lib/*-repository.ts` / `lib/*-mapper.ts` split and is what makes the domain layer testable without mocking Firestore in every test.
+- **Firestore mappers take plain document data, not SDK objects.** `src/services/firestore/mappers.ts` accepts a Firestore `Timestamp` structurally (via its `toDate()` method) rather than importing one, so the mappers stay pure and need no Firestore instance under test.
 - **Prefer pure functions for anything with logic** (computing derived fields, status transitions, formatting) — easy to unit test, easy to reason about.
 - **TypeScript strict mode stays on** (`tsconfig.json` `strict: true`). Don't loosen it to unblock a change; fix the type instead.
 - **Testing stack:** Jest with the `jest-expo` preset, `@testing-library/react-native` (**not** `react-test-renderer` — it doesn't support React 19+, which this project is on) for component tests. `@testing-library/react-native`'s `render()` is async in the installed version — always `await render(...)` before querying `screen`.
