@@ -1,4 +1,4 @@
-import type { SessionStatus, WorkoutSession } from '@/types/workout';
+import type { ExerciseMetric, SessionStatus, SetLog, WorkoutSession } from '@/types/workout';
 
 /**
  * The day to show for a session. `workoutDate` is the user's own local calendar
@@ -50,4 +50,50 @@ export function sessionDurationLabel(activeDurationSec: number | null): string |
 
 export function isUnfinished(status: SessionStatus): boolean {
   return status === 'in_progress';
+}
+
+/** `90` → "1:30", `45` → "0:45". */
+export function formatClock(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.round(totalSeconds % 60);
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+/**
+ * How one logged set reads, which depends on the exercise's metric. Weights are
+ * stored in pounds (see docs/DATA_MODEL.md) — `units` on the profile is a
+ * display preference no screen reads yet.
+ */
+export function formatSet(set: SetLog, metric: ExerciseMetric): string {
+  const parts = metricParts(set, metric);
+
+  // A set stopwatch can accompany any non-duration metric.
+  if (metric !== 'duration' && set.timedSetSec) {
+    parts.push(formatClock(set.timedSetSec));
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : '—';
+}
+
+function metricParts(set: SetLog, metric: ExerciseMetric): string[] {
+  switch (metric) {
+    case 'weight_reps': {
+      if (set.weight !== null && set.reps !== null) return [`${set.weight} lb × ${set.reps}`];
+      if (set.weight !== null) return [`${set.weight} lb`];
+      return set.reps !== null ? [`${set.reps} reps`] : [];
+    }
+    case 'bodyweight_reps':
+      return set.reps !== null ? [`${set.reps} reps`] : [];
+    case 'duration':
+      return set.durationSec ? [formatClock(set.durationSec)] : [];
+    case 'cardio': {
+      const parts: string[] = [];
+      if (set.durationSec) parts.push(formatClock(set.durationSec));
+      if (set.distanceMiles !== null) parts.push(`${set.distanceMiles} mi`);
+      if (set.paceMph !== null) parts.push(`${set.paceMph} mph`);
+      if (set.inclinePercent !== null) parts.push(`${set.inclinePercent}% incline`);
+      if (set.resistanceLevel !== null) parts.push(`L${set.resistanceLevel}`);
+      return parts;
+    }
+  }
 }

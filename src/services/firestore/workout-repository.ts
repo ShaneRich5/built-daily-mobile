@@ -1,4 +1,4 @@
-import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 
 import { toWorkoutPlan, toWorkoutSession } from '@/services/firestore/mappers';
 import { getDb } from '@/services/firebase';
@@ -36,6 +36,26 @@ export function subscribeToRecentSessions(
       const inProgress = mapped.filter((s) => s.status === 'in_progress');
       const finished = mapped.filter((s) => s.status !== 'in_progress');
       onData([...inProgress, ...finished]);
+    },
+    onError,
+  );
+}
+
+/**
+ * A single session, live. Fetched by id rather than reused from the list so the
+ * screen works on a cold open or deep link, not only after scrolling the list.
+ * Yields null when the document does not exist.
+ */
+export function subscribeToSession(
+  userId: string,
+  sessionId: string,
+  { onData, onError }: Listener<WorkoutSession | null>,
+): Unsubscribe {
+  return onSnapshot(
+    doc(getDb(), 'users', userId, 'sessions', sessionId),
+    (snapshot) => {
+      const data = snapshot.data();
+      onData(data ? toWorkoutSession(snapshot.id, data) : null);
     },
     onError,
   );

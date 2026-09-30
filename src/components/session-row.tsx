@@ -1,4 +1,5 @@
-import { StyleSheet } from 'react-native';
+import { Link } from 'expo-router';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -15,6 +16,27 @@ export function SessionRow({ session }: { session: WorkoutSession }) {
   const duration = sessionDurationLabel(session.activeDurationSec);
   const preview = session.previewExerciseNames.join(', ');
 
+  return (
+    <Link href={`/session/${session.id}`} asChild>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${session.title || 'Untitled workout'}, ${sessionDayLabel(session)}`}
+        style={({ pressed }) => pressed && styles.pressed}>
+        <SessionRowBody session={session} duration={duration} preview={preview} />
+      </Pressable>
+    </Link>
+  );
+}
+
+function SessionRowBody({
+  session,
+  duration,
+  preview,
+}: {
+  session: WorkoutSession;
+  duration: string | null;
+  preview: string;
+}) {
   return (
     <ThemedView type="backgroundElement" style={styles.row}>
       <ThemedView type="backgroundElement" style={styles.titleLine}>
@@ -59,5 +81,8 @@ const styles = StyleSheet.create({
   },
   title: {
     flexShrink: 1,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

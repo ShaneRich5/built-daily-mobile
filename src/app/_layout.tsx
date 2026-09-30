@@ -20,6 +20,12 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={!!user}>
         <Stack.Screen name="(app)" />
+        {/* Pushed over the tabs rather than living in (app), where every file
+            becomes a tab. */}
+        <Stack.Screen
+          name="session/[id]"
+          options={{ headerShown: true, headerTitle: 'Workout', headerBackTitle: 'Back' }}
+        />
       </Stack.Protected>
 
       <Stack.Protected guard={!user}>
