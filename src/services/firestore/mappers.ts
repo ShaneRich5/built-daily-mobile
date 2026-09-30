@@ -128,3 +128,78 @@ export function toWorkoutPlan(id: string, raw: DocData): WorkoutPlan {
     lines: Array.isArray(raw.lines) ? raw.lines.map((l) => toPlanLine(l as DocData)) : [],
   };
 }
+
+/**
+ * A partial session update, in the shape the document stores.
+ *
+ * Still no firebase import: `Date` values go through the SDK unchanged and are
+ * stored as `Timestamp`, so the write path needs no `Timestamp` construction and
+ * this stays unit-testable. `undefined` fields are omitted by `updateDoc`, which
+ * is how a patch leaves a field alone; `null` is a real stored value.
+ */
+export type SessionPatch = Partial<
+  Pick<
+    WorkoutSession,
+    | 'status'
+    | 'title'
+    | 'workoutDate'
+    | 'workoutTime'
+    | 'endedAt'
+    | 'workoutNote'
+    | 'exerciseNotesByLineId'
+    | 'lines'
+    | 'exerciseCount'
+    | 'setCount'
+    | 'previewExerciseNames'
+  >
+>;
+
+function fromSetLog(set: SetLog): DocData {
+  return {
+    weight: set.weight,
+    reps: set.reps,
+    durationSec: set.durationSec,
+    timedSetSec: set.timedSetSec,
+    paceMph: set.paceMph,
+    inclinePercent: set.inclinePercent,
+    resistanceLevel: set.resistanceLevel,
+    distanceMiles: set.distanceMiles,
+    note: set.note,
+  };
+}
+
+function fromSessionLine(line: SessionLine): DocData {
+  return {
+    lineId: line.lineId,
+    exerciseId: line.exerciseId,
+    nameSnapshot: line.nameSnapshot,
+    metric: line.metric,
+    sets: line.sets.map(fromSetLog),
+  };
+}
+
+/**
+ * Domain patch → document data. Only the keys actually present are emitted, so
+ * an untouched field is never overwritten with `undefined`.
+ */
+export function fromSessionPatch(patch: SessionPatch): DocData {
+  const doc: DocData = {};
+
+  if (patch.status !== undefined) doc.status = patch.status;
+  if (patch.title !== undefined) doc.title = patch.title;
+  if (patch.workoutDate !== undefined) doc.workoutDate = patch.workoutDate;
+  if (patch.workoutTime !== undefined) doc.workoutTime = patch.workoutTime;
+  if (patch.endedAt !== undefined) doc.endedAt = patch.endedAt;
+  if (patch.workoutNote !== undefined) doc.workoutNote = patch.workoutNote;
+  if (patch.exerciseNotesByLineId !== undefined) {
+    doc.exerciseNotesByLineId = patch.exerciseNotesByLineId;
+  }
+  if (patch.lines !== undefined) doc.lines = patch.lines.map(fromSessionLine);
+  if (patch.exerciseCount !== undefined) doc.exerciseCount = patch.exerciseCount;
+  if (patch.setCount !== undefined) doc.setCount = patch.setCount;
+  if (patch.previewExerciseNames !== undefined) {
+    doc.previewExerciseNames = patch.previewExerciseNames;
+  }
+
+  return doc;
+}

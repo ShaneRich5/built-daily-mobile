@@ -1,15 +1,11 @@
 import { Link } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 
+import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import {
-  isUnfinished,
-  sessionDayLabel,
-  sessionDurationLabel,
-  sessionVolumeLabel,
-} from '@/lib/session-format';
+import { sessionDayLabel, sessionDurationLabel, sessionVolumeLabel } from '@/lib/session-format';
 import type { WorkoutSession } from '@/types/workout';
 
 export function SessionRow({ session }: { session: WorkoutSession }) {
@@ -58,11 +54,7 @@ function SessionRowBody({
         </ThemedText>
       ) : null}
 
-      {isUnfinished(session.status) ? (
-        <ThemedText type="small" themeColor="tint">
-          In progress
-        </ThemedText>
-      ) : null}
+      <StatusBadge status={session.status} />
     </ThemedView>
   );
 }

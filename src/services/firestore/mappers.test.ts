@@ -1,4 +1,9 @@
-import { toDate, toWorkoutPlan, toWorkoutSession } from '@/services/firestore/mappers';
+import {
+  fromSessionPatch,
+  toDate,
+  toWorkoutPlan,
+  toWorkoutSession,
+} from '@/services/firestore/mappers';
 
 // Stands in for a Firestore Timestamp, which the mappers accept structurally.
 const timestamp = (iso: string) => ({ toDate: () => new Date(iso) });
@@ -132,5 +137,90 @@ describe('toWorkoutPlan', () => {
     const plan = toWorkoutPlan('plan-1', { createdAt: timestamp('2026-09-01T00:00:00Z') });
 
     expect(plan.updatedAt).toEqual(plan.createdAt);
+  });
+});
+
+describe('fromSessionPatch', () => {
+  it('emits only the keys the patch actually set', () => {
+    // An absent key must not reach Firestore at all: `updateDoc` would reject
+    // `undefined`, and a null would wipe a field the screen never touched.
+    expect(fromSessionPatch({ title: 'Leg day' })).toEqual({ title: 'Leg day' });
+  });
+
+  it('keeps null, which is a real stored value', () => {
+    const doc = fromSessionPatch({ workoutDate: null, endedAt: null });
+
+    expect(doc).toEqual({ workoutDate: null, endedAt: null });
+    expect('title' in doc).toBe(false);
+  });
+
+  it('passes Date through for the SDK to store as a Timestamp', () => {
+    const endedAt = new Date('2026-09-29T18:00:00Z');
+
+    expect(fromSessionPatch({ endedAt }).endedAt).toBe(endedAt);
+  });
+
+  it('flattens lines and their sets into plain document data', () => {
+    const doc = fromSessionPatch({
+      lines: [
+        {
+          lineId: 'l1',
+          exerciseId: 'bench',
+          nameSnapshot: 'Bench',
+          metric: 'weight_reps',
+          sets: [
+            {
+              weight: 135,
+              reps: 8,
+              durationSec: null,
+              timedSetSec: null,
+              paceMph: null,
+              inclinePercent: null,
+              resistanceLevel: null,
+              distanceMiles: null,
+              note: 'felt light',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(doc.lines).toEqual([
+      {
+        lineId: 'l1',
+        exerciseId: 'bench',
+        nameSnapshot: 'Bench',
+        metric: 'weight_reps',
+        sets: [
+          {
+            weight: 135,
+            reps: 8,
+            durationSec: null,
+            timedSetSec: null,
+            paceMph: null,
+            inclinePercent: null,
+            resistanceLevel: null,
+            distanceMiles: null,
+            note: 'felt light',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('survives a round trip back through the read mapper', () => {
+    const lines = [
+      {
+        lineId: 'l1',
+        exerciseId: 'squat',
+        nameSnapshot: 'Squat',
+        metric: 'weight_reps' as const,
+        sets: [],
+      },
+    ];
+
+    const doc = fromSessionPatch({ lines });
+
+    expect(toWorkoutSession('s1', doc).lines).toEqual(lines);
   });
 });

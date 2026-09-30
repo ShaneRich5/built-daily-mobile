@@ -1,6 +1,20 @@
-import { collection, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
-import { toWorkoutPlan, toWorkoutSession } from '@/services/firestore/mappers';
+import {
+  fromSessionPatch,
+  toWorkoutPlan,
+  toWorkoutSession,
+  type SessionPatch,
+} from '@/services/firestore/mappers';
 import { getDb } from '@/services/firebase';
 import type { WorkoutPlan, WorkoutSession } from '@/types/workout';
 
@@ -76,4 +90,20 @@ export function subscribeToPlans(
     (snapshot) => onData(snapshot.docs.map((doc) => toWorkoutPlan(doc.id, doc.data()))),
     onError,
   );
+}
+
+/**
+ * Writes a partial update to one session. Only the fields present in the patch
+ * are sent, so two screens editing different parts of the same session do not
+ * clobber each other.
+ *
+ * The open `onSnapshot` from `subscribeToSession` delivers the result, including
+ * the local echo, so callers do not need to merge anything themselves.
+ */
+export async function updateSession(
+  userId: string,
+  sessionId: string,
+  patch: SessionPatch,
+): Promise<void> {
+  await updateDoc(doc(getDb(), 'users', userId, 'sessions', sessionId), fromSessionPatch(patch));
 }

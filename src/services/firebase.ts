@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getReactNativePersistence, initializeAuth, type Auth } from 'firebase/auth';
+import { getAuth, getReactNativePersistence, initializeAuth, type Auth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { Platform } from 'react-native';
 
 // Expo only inlines `process.env.EXPO_PUBLIC_*` read with static dot notation —
 // destructuring or bracket access silently yields undefined at runtime.
@@ -32,6 +33,13 @@ export function assertConfigured(config: Record<string, string | undefined>) {
 function createAuth(): Auth {
   assertConfigured(firebaseConfig);
   const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+  // `getReactNativePersistence` only exists in the react-native bundle of
+  // firebase/auth (see src/types/firebase-auth-rn.d.ts). The web build resolves
+  // a bundle without it, so calling it there throws and takes the whole app
+  // down at startup. `getAuth` is in both bundles and already defaults to
+  // browser-local persistence, which is the same survives-a-restart intent.
+  if (Platform.OS === 'web') return getAuth(app);
 
   // initializeAuth (not getAuth) so the session survives an app restart via AsyncStorage.
   return initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });

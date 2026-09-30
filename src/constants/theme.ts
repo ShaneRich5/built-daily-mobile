@@ -30,6 +30,21 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+/**
+ * Body-chart fills: `rest` for a muscle the workout never touched, and `ramp`
+ * indexed by intensity 1–3. Kept out of `Colors` on purpose — `ThemeColor` is
+ * every key there, and `ThemedText`/`ThemedView` would then accept a name that
+ * resolves to an object rather than a colour.
+ *
+ * The ramp runs light-to-dark on white and dark-to-light on black. `rest` has
+ * to clear two neighbours at once: the card behind it and the first step of the
+ * ramp, which is why it is a neutral grey rather than another blue.
+ */
+export const MuscleChartColors = {
+  light: { rest: '#C7CBD1', ramp: ['#9CC5F8', '#4A90F0', '#14509E'] },
+  dark: { rest: '#3A3F46', ramp: ['#2A5FA8', '#4A90F0', '#9FCBFF'] },
+} as const;
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */
