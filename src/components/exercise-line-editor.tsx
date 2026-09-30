@@ -2,11 +2,12 @@ import { StyleSheet, TextInput, View } from 'react-native';
 
 import { ActionButton } from '@/components/action-button';
 import { FormField } from '@/components/form-field';
+import { NoteField } from '@/components/note-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { type DraftLine, type DraftSet, editableSetFields } from '@/lib/session-edit';
+import { type DraftLine, type DraftSet, editableSetFields, nextDraftSet } from '@/lib/session-edit';
 
 type ExerciseLineEditorProps = {
   line: DraftLine;
@@ -36,29 +37,10 @@ export function ExerciseLineEditor({
   };
 
   const addSet = () => {
-    // A new set copies the one before it, since sets in a row usually repeat.
-    const last = line.sets[line.sets.length - 1];
-    const blank: DraftSet = last
-      ? { ...last }
-      : {
-          original: {
-            weight: null,
-            reps: null,
-            durationSec: null,
-            timedSetSec: null,
-            paceMph: null,
-            inclinePercent: null,
-            resistanceLevel: null,
-            distanceMiles: null,
-            note: null,
-          },
-          weight: '',
-          reps: '',
-          durationSec: '',
-          distanceMiles: '',
-        };
-
-    onChangeLine({ ...line, sets: [...line.sets, blank] });
+    onChangeLine({
+      ...line,
+      sets: [...line.sets, nextDraftSet(line.sets[line.sets.length - 1])],
+    });
   };
 
   const removeSet = (index: number) => {
@@ -75,12 +57,12 @@ export function ExerciseLineEditor({
         editable={!disabled}
       />
 
-      <FormField
-        label="Note"
+      <NoteField
+        label={`Note for ${line.nameSnapshot || 'this exercise'}`}
+        caption="Note"
         value={note}
-        onChangeText={onChangeNote}
-        placeholder="Anything worth remembering"
-        editable={!disabled}
+        onChange={onChangeNote}
+        disabled={disabled}
       />
 
       <ThemedText type="small" themeColor="textSecondary">
@@ -90,27 +72,37 @@ export function ExerciseLineEditor({
       {line.sets.map((set, index) => (
         // Sets have no id of their own; their position is the identity, and the
         // list is only ever appended to or filtered.
-        <View key={index} style={styles.setRow}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.setIndex}>
-            {index + 1}
-          </ThemedText>
+        <View key={index} style={styles.set}>
+          <View style={styles.setRow}>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.setIndex}>
+              {index + 1}
+            </ThemedText>
 
-          {fields.map((field) => (
-            <SetNumberInput
-              key={field.key}
-              label={field.label}
-              value={set[field.key]}
-              onChangeText={(value) => updateSet(index, { [field.key]: value })}
+            {fields.map((field) => (
+              <SetNumberInput
+                key={field.key}
+                label={field.label}
+                value={set[field.key]}
+                onChangeText={(value) => updateSet(index, { [field.key]: value })}
+                disabled={disabled}
+              />
+            ))}
+
+            <ActionButton
+              label="Remove"
+              variant="danger"
+              onPress={() => removeSet(index)}
               disabled={disabled}
+              style={styles.removeSet}
             />
-          ))}
+          </View>
 
-          <ActionButton
-            label="Remove"
-            variant="danger"
-            onPress={() => removeSet(index)}
+          <NoteField
+            label={`Note for set ${index + 1}`}
+            caption={null}
+            value={set.note}
+            onChange={(note) => updateSet(index, { note })}
             disabled={disabled}
-            style={styles.removeSet}
           />
         </View>
       ))}
@@ -178,6 +170,9 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     gap: Spacing.two,
     padding: Spacing.three,
+  },
+  set: {
+    gap: Spacing.one,
   },
   setRow: {
     alignItems: 'center',

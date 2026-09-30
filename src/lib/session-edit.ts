@@ -143,6 +143,8 @@ export type DraftSet = {
   reps: string;
   durationSec: string;
   distanceMiles: string;
+  /** Optional, per-set — "felt light", "left knee twinge". Blank means none. */
+  note: string;
 };
 
 export type DraftLine = {
@@ -160,7 +162,22 @@ export function toDraftSet(set: SetLog): DraftSet {
     reps: numericFieldValue(set.reps),
     durationSec: numericFieldValue(set.durationSec),
     distanceMiles: numericFieldValue(set.distanceMiles),
+    note: set.note ?? '',
   };
+}
+
+/**
+ * The set to append when another one is added.
+ *
+ * Numbers carry forward from the set before it, since sets in a row usually
+ * repeat, but the note does not: a note describes the set it was written for,
+ * and inheriting "failed last rep" onto a set nobody has done yet would be a
+ * lie the lifter has to notice and delete.
+ */
+export function nextDraftSet(previous: DraftSet | undefined): DraftSet {
+  if (!previous) return toDraftSet(EMPTY_SET);
+
+  return { ...previous, original: { ...previous.original, note: null }, note: '' };
 }
 
 export function toDraftLines(lines: readonly SessionLine[]): DraftLine[] {
@@ -180,6 +197,7 @@ export function fromDraftSet(draft: DraftSet): SetLog {
     reps: parseNumericField(draft.reps),
     durationSec: parseNumericField(draft.durationSec),
     distanceMiles: parseNumericField(draft.distanceMiles),
+    note: blankToNull(draft.note),
   };
 }
 

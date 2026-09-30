@@ -4,8 +4,10 @@ import {
   deriveCounters,
   editableSetFields,
   fromDraftLines,
+  fromDraftSet,
   isValidWorkoutDate,
   isValidWorkoutTime,
+  nextDraftSet,
   numericFieldValue,
   parseNumericField,
   pruneExerciseNotes,
@@ -232,5 +234,68 @@ describe('editableSetFields', () => {
 
   it('shows time and distance for cardio', () => {
     expect(editableSetFields('cardio').map((f) => f.key)).toEqual(['durationSec', 'distanceMiles']);
+  });
+});
+
+describe('set notes', () => {
+  it('carries an existing note into the draft', () => {
+    const draft = toDraftLines([line('a', 'Bench', [{ ...emptySet, note: 'felt light' }])]);
+
+    expect(draft[0].sets[0].note).toBe('felt light');
+  });
+
+  it('shows an empty box for a set with no note', () => {
+    const draft = toDraftLines([line('a', 'Bench', [emptySet])]);
+
+    expect(draft[0].sets[0].note).toBe('');
+  });
+
+  it('saves a note that was typed in', () => {
+    const draft = toDraftLines([line('a', 'Bench', [emptySet])]);
+    draft[0].sets[0].note = '  last rep was a grind  ';
+
+    expect(fromDraftLines(draft)[0].sets[0].note).toBe('last rep was a grind');
+  });
+
+  it('stores null, not an empty string, when a note is cleared', () => {
+    const draft = toDraftLines([line('a', 'Bench', [{ ...emptySet, note: 'felt light' }])]);
+    draft[0].sets[0].note = '   ';
+
+    expect(fromDraftLines(draft)[0].sets[0].note).toBeNull();
+  });
+
+  it('leaves the other set fields alone when only the note changes', () => {
+    const rich: SetLog = { ...emptySet, weight: 135, reps: 8, paceMph: 6.5, timedSetSec: 45 };
+    const draft = toDraftLines([line('a', 'Bench', [rich])]);
+    draft[0].sets[0].note = 'new note';
+
+    expect(fromDraftLines(draft)[0].sets[0]).toEqual({ ...rich, note: 'new note' });
+  });
+});
+
+describe('nextDraftSet', () => {
+  it('carries the numbers forward, since sets in a row usually repeat', () => {
+    const [previous] = toDraftLines([
+      line('a', 'Bench', [{ ...emptySet, weight: 135, reps: 8 }]),
+    ])[0].sets;
+
+    expect(nextDraftSet(previous)).toMatchObject({ weight: '135', reps: '8' });
+  });
+
+  it('does not inherit the previous note, which described that set', () => {
+    const [previous] = toDraftLines([
+      line('a', 'Bench', [{ ...emptySet, weight: 135, note: 'failed last rep' }]),
+    ])[0].sets;
+
+    const next = nextDraftSet(previous);
+
+    expect(next.note).toBe('');
+    // The note also has to be gone from the preserved original, or saving would
+    // write it straight back onto a set nobody has done yet.
+    expect(fromDraftSet(next).note).toBeNull();
+  });
+
+  it('gives a blank set when there is nothing to copy', () => {
+    expect(nextDraftSet(undefined)).toMatchObject({ weight: '', reps: '', note: '' });
   });
 });
