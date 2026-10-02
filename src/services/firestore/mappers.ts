@@ -145,6 +145,7 @@ export type SessionPatch = Partial<
     | 'workoutDate'
     | 'workoutTime'
     | 'endedAt'
+    | 'activeDurationSec'
     | 'workoutNote'
     | 'exerciseNotesByLineId'
     | 'lines'
@@ -179,6 +180,32 @@ function fromSessionLine(line: SessionLine): DocData {
 }
 
 /**
+ * A whole new session → document data.
+ *
+ * Unlike a patch, every field is written, including the ones that are null at
+ * the start (`endedAt`, the notes): the web app reads these documents too, and
+ * a field that is absent rather than null is a shape it has never had to see.
+ */
+export function fromNewSession(session: Omit<WorkoutSession, 'id'>): DocData {
+  return {
+    status: session.status,
+    title: session.title,
+    planId: session.planId,
+    workoutDate: session.workoutDate,
+    workoutTime: session.workoutTime,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+    activeDurationSec: session.activeDurationSec,
+    workoutNote: session.workoutNote,
+    exerciseNotesByLineId: session.exerciseNotesByLineId,
+    lines: session.lines.map(fromSessionLine),
+    exerciseCount: session.exerciseCount,
+    setCount: session.setCount,
+    previewExerciseNames: session.previewExerciseNames,
+  };
+}
+
+/**
  * Domain patch → document data. Only the keys actually present are emitted, so
  * an untouched field is never overwritten with `undefined`.
  */
@@ -190,6 +217,7 @@ export function fromSessionPatch(patch: SessionPatch): DocData {
   if (patch.workoutDate !== undefined) doc.workoutDate = patch.workoutDate;
   if (patch.workoutTime !== undefined) doc.workoutTime = patch.workoutTime;
   if (patch.endedAt !== undefined) doc.endedAt = patch.endedAt;
+  if (patch.activeDurationSec !== undefined) doc.activeDurationSec = patch.activeDurationSec;
   if (patch.workoutNote !== undefined) doc.workoutNote = patch.workoutNote;
   if (patch.exerciseNotesByLineId !== undefined) {
     doc.exerciseNotesByLineId = patch.exerciseNotesByLineId;

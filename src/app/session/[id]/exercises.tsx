@@ -4,11 +4,13 @@ import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
 
 import { ActionButton } from '@/components/action-button';
 import { ExerciseLineEditor } from '@/components/exercise-line-editor';
+import { ExercisePickerDialog } from '@/components/exercise-picker-dialog';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useSessionSave } from '@/hooks/use-session-save';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
+import type { CatalogExercise } from '@/lib/exercise-catalog';
 import {
   type DraftLine,
   deriveCounters,
@@ -17,6 +19,8 @@ import {
   pruneExerciseNotes,
   toDraftLines,
 } from '@/lib/session-edit';
+import { newSessionLine } from '@/lib/session-start';
+import { newLineId } from '@/services/ids';
 import type { WorkoutSession } from '@/types/workout';
 
 export default function EditSessionExercisesScreen() {
@@ -54,8 +58,10 @@ function ExercisesForm({ session }: { session: WorkoutSession }) {
   const [notes, setNotes] = useState<Record<string, string>>(
     () => session.exerciseNotesByLineId ?? {},
   );
+  const [isPicking, setIsPicking] = useState(false);
 
   const overLimit = lines.length > MAX_SESSION_LINES;
+  const atLimit = lines.length >= MAX_SESSION_LINES;
 
   async function handleSave() {
     if (overLimit || isSaving) return;
@@ -70,6 +76,13 @@ function ExercisesForm({ session }: { session: WorkoutSession }) {
     });
 
     if (saved) router.back();
+  }
+
+  function handlePick(exercise: CatalogExercise) {
+    setIsPicking(false);
+    // Through the same draft conversion as a loaded line, so a brand-new
+    // exercise and one read from Firestore are the same shape in this form.
+    setLines((current) => [...current, toDraftLines([newSessionLine(exercise, newLineId())])[0]]);
   }
 
   return (
@@ -91,12 +104,19 @@ function ExercisesForm({ session }: { session: WorkoutSession }) {
 
         {lines.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary">
-            This workout has no exercises left. Saving now will empty it.
+            Nothing logged yet. Add the first exercise to get going.
           </ThemedText>
         ) : null}
 
-        {overLimit ? (
-          <ThemedText type="small" themeColor="danger">
+        <ActionButton
+          label="Add exercise"
+          variant="secondary"
+          onPress={() => setIsPicking(true)}
+          disabled={isSaving || atLimit}
+        />
+
+        {overLimit || atLimit ? (
+          <ThemedText type="small" themeColor={overLimit ? 'danger' : 'textSecondary'}>
             A workout can hold at most {MAX_SESSION_LINES} exercises.
           </ThemedText>
         ) : null}
@@ -109,6 +129,10 @@ function ExercisesForm({ session }: { session: WorkoutSession }) {
 
         <ActionButton label="Save" onPress={handleSave} disabled={overLimit} busy={isSaving} />
       </ScrollView>
+
+      {isPicking ? (
+        <ExercisePickerDialog onCancel={() => setIsPicking(false)} onPick={handlePick} />
+      ) : null}
     </ThemedView>
   );
 }

@@ -8,12 +8,16 @@ import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useSessionSave } from '@/hooks/use-session-save';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
+import { finishSession } from '@/lib/session-edit';
 import { sessionDayLabel, sessionDurationLabel, sessionVolumeLabel } from '@/lib/session-format';
+import type { WorkoutSession } from '@/types/workout';
 
 export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, isLoading, notFound, error } = useWorkoutSession(id);
+  const { save, isSaving, error: saveError } = useSessionSave(id);
 
   if (isLoading) {
     return (
@@ -36,6 +40,7 @@ export default function SessionDetailScreen() {
   if (!session) return null;
 
   const duration = sessionDurationLabel(session.activeDurationSec);
+  const isInProgress = session.status === 'in_progress';
 
   return (
     <ThemedView style={styles.container}>
@@ -49,6 +54,16 @@ export default function SessionDetailScreen() {
             {sessionVolumeLabel(session)}
           </ThemedText>
           <StatusBadge status={session.status} />
+
+          {isInProgress ? (
+            <FinishButton session={session} onFinish={save} busy={isSaving} />
+          ) : null}
+
+          {saveError ? (
+            <ThemedText type="small" themeColor="danger">
+              {saveError}
+            </ThemedText>
+          ) : null}
 
           <View style={styles.actions}>
             <ActionButton
@@ -92,6 +107,31 @@ export default function SessionDetailScreen() {
   );
 }
 
+/**
+ * Finishing from the read view, which is where a lifter lands when the workout
+ * is done — the same transition is available under "Edit details", but burying
+ * the last step of a workout behind an edit screen would be a poor way to end
+ * one.
+ */
+function FinishButton({
+  session,
+  onFinish,
+  busy,
+}: {
+  session: WorkoutSession;
+  onFinish: (patch: ReturnType<typeof finishSession>) => Promise<boolean>;
+  busy: boolean;
+}) {
+  return (
+    <ActionButton
+      label="Finish workout"
+      onPress={() => onFinish(finishSession(session))}
+      busy={busy}
+      style={styles.finish}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -110,6 +150,9 @@ const styles = StyleSheet.create({
   },
   heading: {
     gap: Spacing.one,
+  },
+  finish: {
+    marginTop: Spacing.two,
   },
   actions: {
     flexDirection: 'row',

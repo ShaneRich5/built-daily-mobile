@@ -1,4 +1,5 @@
 import {
+  fromNewSession,
   fromSessionPatch,
   toDate,
   toWorkoutPlan,
@@ -140,6 +141,91 @@ describe('toWorkoutPlan', () => {
   });
 });
 
+describe('fromNewSession', () => {
+  const session = {
+    status: 'in_progress' as const,
+    title: 'Workout on 2026-09-14',
+    planId: null,
+    workoutDate: '2026-09-14',
+    workoutTime: '09:05',
+    startedAt: new Date('2026-09-14T09:05:00Z'),
+    endedAt: null,
+    activeDurationSec: null,
+    workoutNote: null,
+    exerciseNotesByLineId: null,
+    lines: [],
+    exerciseCount: 0,
+    setCount: 0,
+    previewExerciseNames: [],
+  };
+
+  // The web app reads these documents too, and has never had to cope with a
+  // field that is absent rather than null.
+  it('writes every field, including the ones that are null at the start', () => {
+    const doc = fromNewSession(session);
+
+    expect(Object.keys(doc).sort()).toEqual(
+      [
+        'activeDurationSec',
+        'endedAt',
+        'exerciseCount',
+        'exerciseNotesByLineId',
+        'lines',
+        'planId',
+        'previewExerciseNames',
+        'setCount',
+        'startedAt',
+        'status',
+        'title',
+        'workoutDate',
+        'workoutNote',
+        'workoutTime',
+      ].sort(),
+    );
+  });
+
+  it('passes Date through for the SDK to store as a Timestamp', () => {
+    expect(fromNewSession(session).startedAt).toBe(session.startedAt);
+  });
+
+  it('flattens the lines it was given', () => {
+    const doc = fromNewSession({
+      ...session,
+      lines: [
+        {
+          lineId: 'l1',
+          exerciseId: 'plank',
+          nameSnapshot: 'Plank',
+          metric: 'duration',
+          sets: [
+            {
+              weight: null,
+              reps: null,
+              durationSec: 60,
+              timedSetSec: null,
+              paceMph: null,
+              inclinePercent: null,
+              resistanceLevel: null,
+              distanceMiles: null,
+              note: null,
+            },
+          ],
+        },
+      ],
+      exerciseCount: 1,
+      setCount: 1,
+      previewExerciseNames: ['Plank'],
+    });
+
+    expect(toWorkoutSession('s1', doc)).toMatchObject({
+      status: 'in_progress',
+      exerciseCount: 1,
+      setCount: 1,
+      lines: [{ exerciseId: 'plank', metric: 'duration' }],
+    });
+  });
+});
+
 describe('fromSessionPatch', () => {
   it('emits only the keys the patch actually set', () => {
     // An absent key must not reach Firestore at all: `updateDoc` would reject
@@ -158,6 +244,10 @@ describe('fromSessionPatch', () => {
     const endedAt = new Date('2026-09-29T18:00:00Z');
 
     expect(fromSessionPatch({ endedAt }).endedAt).toBe(endedAt);
+  });
+
+  it('carries the duration a finished workout took', () => {
+    expect(fromSessionPatch({ activeDurationSec: 2700 })).toEqual({ activeDurationSec: 2700 });
   });
 
   it('flattens lines and their sets into plain document data', () => {

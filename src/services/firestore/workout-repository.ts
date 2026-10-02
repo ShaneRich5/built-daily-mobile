@@ -1,4 +1,5 @@
 import {
+  addDoc,
   collection,
   doc,
   limit,
@@ -10,6 +11,7 @@ import {
 } from 'firebase/firestore';
 
 import {
+  fromNewSession,
   fromSessionPatch,
   toWorkoutPlan,
   toWorkoutSession,
@@ -90,6 +92,26 @@ export function subscribeToPlans(
     (snapshot) => onData(snapshot.docs.map((doc) => toWorkoutPlan(doc.id, doc.data()))),
     onError,
   );
+}
+
+/**
+ * Starts a workout, and answers with the id Firestore gave it so the caller can
+ * navigate straight into the session it just created.
+ *
+ * The id comes from Firestore rather than the client: the document is the only
+ * thing that needs one, and letting the server mint it keeps this the same
+ * `users/{uid}/sessions/{autoId}` shape the web app writes.
+ */
+export async function createSession(
+  userId: string,
+  session: Omit<WorkoutSession, 'id'>,
+): Promise<string> {
+  const created = await addDoc(
+    collection(getDb(), 'users', userId, 'sessions'),
+    fromNewSession(session),
+  );
+
+  return created.id;
 }
 
 /**

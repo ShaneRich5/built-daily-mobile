@@ -1,41 +1,40 @@
 import { ActivityIndicator, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AccountCard } from '@/components/account-card';
-import { ActionButton } from '@/components/action-button';
-import { SessionRow } from '@/components/session-row';
+import { PlanRow } from '@/components/plan-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useRecentSessions } from '@/hooks/use-recent-sessions';
+import { usePlans } from '@/hooks/use-plans';
 import { useStartWorkout } from '@/hooks/use-start-workout';
 
-export default function HomeScreen() {
-  const { sessions, isLoading, error } = useRecentSessions();
-  const { start, isStarting, error: startError } = useStartWorkout();
+/**
+ * The saved templates, newest edit first. Plans are built on the web and only
+ * read here — what mobile adds is starting a workout from one.
+ */
+export default function PlansScreen() {
+  const { plans, isLoading, error } = usePlans();
+  const { start, startingPlanId, error: startError } = useStartWorkout();
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <FlatList
-          data={sessions}
-          keyExtractor={(session) => session.id}
-          renderItem={({ item }) => <SessionRow session={item} />}
+          data={plans}
+          keyExtractor={(plan) => plan.id}
+          renderItem={({ item }) => (
+            <PlanRow plan={item} onStart={start} busy={startingPlanId === item.id} />
+          )}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
-            <ThemedView style={styles.header}>
-              <AccountCard />
-
-              <ActionButton label="Start a workout" onPress={() => start()} busy={isStarting} />
-
+            <>
+              <ThemedText type="subtitle">Plans</ThemedText>
               {startError ? (
                 <ThemedText type="small" themeColor="danger">
                   {startError}
                 </ThemedText>
               ) : null}
-
-              <ThemedText type="subtitle">Recent workouts</ThemedText>
-            </ThemedView>
+            </>
           }
           ListEmptyComponent={<EmptyState isLoading={isLoading} error={error} />}
         />
@@ -59,7 +58,7 @@ function EmptyState({ isLoading, error }: { isLoading: boolean; error: string | 
 
   return (
     <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-      No workouts yet. Anything you log on the website will show up here.
+      No plans yet. Templates you save on the website will show up here.
     </ThemedText>
   );
 }
@@ -70,20 +69,15 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+    marginBottom: BottomTabInset,
   },
   listContent: {
     gap: Spacing.two,
     maxWidth: MaxContentWidth,
-    paddingBottom: BottomTabInset + Spacing.four,
-    paddingHorizontal: Spacing.three,
+    padding: Spacing.three,
     width: '100%',
   },
-  header: {
-    gap: Spacing.three,
-    paddingBottom: Spacing.two,
-  },
   empty: {
-    paddingVertical: Spacing.four,
-    textAlign: 'center',
+    paddingTop: Spacing.three,
   },
 });

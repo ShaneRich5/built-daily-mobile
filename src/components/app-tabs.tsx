@@ -20,6 +20,18 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="plans">
+        <NativeTabs.Trigger.Label>Plans</NativeTabs.Trigger.Label>
+        {/* Platform symbols rather than a bundled PNG: these two tabs arrived
+            without artwork, and SF Symbols / Material Symbols need none. */}
+        <NativeTabs.Trigger.Icon sf="list.bullet.rectangle" md="list_alt" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="exercises">
+        <NativeTabs.Trigger.Label>Exercises</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="dumbbell" md="fitness_center" />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="explore">
         <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon

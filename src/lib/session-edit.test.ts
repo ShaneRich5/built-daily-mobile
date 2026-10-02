@@ -1,6 +1,7 @@
 import {
   applyStatusTransition,
   blankToNull,
+  finishSession,
   deriveCounters,
   editableSetFields,
   fromDraftLines,
@@ -93,6 +94,54 @@ describe('applyStatusTransition', () => {
     const patch = applyStatusTransition({ status: 'in_progress', endedAt: null }, 'discarded', now);
 
     expect(patch.endedAt).toEqual(now);
+  });
+});
+
+describe('finishSession', () => {
+  const startedAt = new Date('2026-09-29T17:15:00Z');
+  const now = new Date('2026-09-29T18:00:00Z');
+
+  it('completes the workout and stamps when it ended', () => {
+    const patch = finishSession({ status: 'in_progress', endedAt: null, startedAt, activeDurationSec: null }, now);
+
+    expect(patch.status).toBe('completed');
+    expect(patch.endedAt).toEqual(now);
+  });
+
+  it('records the elapsed time as the duration', () => {
+    const patch = finishSession({ status: 'in_progress', endedAt: null, startedAt, activeDurationSec: null }, now);
+
+    expect(patch.activeDurationSec).toBe(45 * 60);
+  });
+
+  // The web app's session timer knows about pauses; this wall clock does not.
+  it('keeps a duration the web app already measured', () => {
+    const patch = finishSession(
+      { status: 'in_progress', endedAt: null, startedAt, activeDurationSec: 1800 },
+      now,
+    );
+
+    expect(patch.activeDurationSec).toBe(1800);
+  });
+
+  it('records no duration for a session left open for days', () => {
+    const stale = new Date('2026-09-20T10:00:00Z');
+    const patch = finishSession(
+      { status: 'in_progress', endedAt: null, startedAt: stale, activeDurationSec: null },
+      now,
+    );
+
+    expect(patch.activeDurationSec).toBeNull();
+  });
+
+  // `startedAt` falls back to the epoch for documents that predate the field.
+  it('records no duration when the start time is not real', () => {
+    const patch = finishSession(
+      { status: 'in_progress', endedAt: null, startedAt: new Date(0), activeDurationSec: null },
+      now,
+    );
+
+    expect(patch.activeDurationSec).toBeNull();
   });
 });
 

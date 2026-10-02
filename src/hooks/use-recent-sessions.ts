@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useSession } from '@/contexts/session';
+import { describeReadError } from '@/lib/read-error';
 import { subscribeToRecentSessions } from '@/services/firestore/workout-repository';
 import type { WorkoutSession } from '@/types/workout';
 
@@ -27,7 +28,12 @@ export function useRecentSessions(): State {
 
     return subscribeToRecentSessions(uid, {
       onData: (sessions) => setResult({ uid, sessions, error: null }),
-      onError: (error) => setResult({ uid, sessions: [], error: describeReadError(error) }),
+      onError: (error) =>
+        setResult({
+          uid,
+          sessions: [],
+          error: describeReadError(error, 'Could not load your workouts.'),
+        }),
     });
   }, [uid]);
 
@@ -43,16 +49,4 @@ export function useRecentSessions(): State {
   }
 
   return { sessions: result.sessions, isLoading: false, error: result.error };
-}
-
-function describeReadError(error: Error): string {
-  // A missing composite index needs a developer, not a retry, so it is worth
-  // surfacing distinctly instead of a generic failure message.
-  if (error.message.includes('index')) {
-    return 'This query needs a Firestore index. Check the dev server logs for the link that creates it.';
-  }
-  if ('code' in error && error.code === 'permission-denied') {
-    return 'You do not have access to this data.';
-  }
-  return 'Could not load your workouts.';
 }

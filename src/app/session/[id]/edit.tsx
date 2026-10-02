@@ -13,6 +13,7 @@ import { useWorkoutSession } from '@/hooks/use-workout-session';
 import {
   applyStatusTransition,
   blankToNull,
+  finishSession,
   isValidWorkoutDate,
   isValidWorkoutTime,
 } from '@/lib/session-edit';
@@ -87,7 +88,12 @@ function DetailsForm({ session }: { session: WorkoutSession }) {
   }
 
   async function handleStatus(next: SessionStatus) {
-    const saved = await save(applyStatusTransition(session, next));
+    // Completing is the end of a workout, not a plain status change: it also
+    // records how long the session took.
+    const patch =
+      next === 'completed' ? finishSession(session) : applyStatusTransition(session, next);
+
+    const saved = await save(patch);
     if (saved) router.back();
   }
 

@@ -65,6 +65,42 @@ export function applyStatusTransition(
   return { status: next, endedAt: session.endedAt ?? now };
 }
 
+/**
+ * A workout nobody could plausibly have been in the middle of. Past this, the
+ * elapsed clock is measuring an app that was left open overnight — or a session
+ * whose `startedAt` fell back to the epoch — rather than a workout.
+ */
+const MAX_PLAUSIBLE_WORKOUT_SEC = 12 * 60 * 60;
+
+export type FinishPatch = StatusPatch & {
+  activeDurationSec: number | null;
+};
+
+/**
+ * Finishing a workout: it completes, `endedAt` is stamped, and how long it took
+ * is recorded.
+ *
+ * Mobile has no pause-and-resume timer yet, so the duration is wall time from
+ * `startedAt` — which overstates a workout that was started and left. A figure
+ * already on the document was put there by the web app's real session timer, so
+ * it is kept rather than overwritten with the rougher measure.
+ */
+export function finishSession(
+  session: Pick<WorkoutSession, 'status' | 'endedAt' | 'startedAt' | 'activeDurationSec'>,
+  now: Date = new Date(),
+): FinishPatch {
+  const status = applyStatusTransition(session, 'completed', now);
+
+  if (session.activeDurationSec !== null && session.activeDurationSec > 0) {
+    return { ...status, activeDurationSec: session.activeDurationSec };
+  }
+
+  const elapsedSec = Math.round((now.getTime() - session.startedAt.getTime()) / 1000);
+  const plausible = elapsedSec > 0 && elapsedSec <= MAX_PLAUSIBLE_WORKOUT_SEC;
+
+  return { ...status, activeDurationSec: plausible ? elapsedSec : null };
+}
+
 /** `YYYY-MM-DD`, and a real day — so `2026-02-31` is rejected. */
 export function isValidWorkoutDate(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
