@@ -15,6 +15,13 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # `expo-env.d.ts` is generated rather than committed — Expo gitignores it
+      # — and it is what declares the CSS module imports (`global.css`,
+      # `*.module.css`). A checkout has never run a dev server, so without this
+      # step `tsc` fails here on files that typecheck fine on a machine where
+      # the file already exists. Regenerating it leaves tsconfig.json untouched.
+      - name: Generate Expo types
+        run: npx expo customize tsconfig.json
       - run: npm run typecheck
       - run: npm run lint
       - run: npx jest --watchAll=false
