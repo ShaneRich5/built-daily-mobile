@@ -1,4 +1,4 @@
-import { ActivityIndicator, FlatList, StyleSheet } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountCard } from '@/components/account-card';
@@ -9,10 +9,12 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useRecentSessions } from '@/hooks/use-recent-sessions';
 import { useStartWorkout } from '@/hooks/use-start-workout';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function HomeScreen() {
-  const { sessions, isLoading, error } = useRecentSessions();
+  const { sessions, isLoading, isRefreshing, refresh, error } = useRecentSessions();
   const { start, isStarting, error: startError } = useStartWorkout();
+  const theme = useTheme();
 
   return (
     <ThemedView style={styles.container}>
@@ -22,6 +24,16 @@ export default function HomeScreen() {
           keyExtractor={(session) => session.id}
           renderItem={({ item }) => <SessionRow session={item} />}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refresh}
+              // The default spinner is near-invisible on a black background.
+              tintColor={theme.textSecondary}
+              colors={[theme.tint]}
+              progressBackgroundColor={theme.backgroundElement}
+            />
+          }
           ListHeaderComponent={
             <ThemedView style={styles.header}>
               <AccountCard />
