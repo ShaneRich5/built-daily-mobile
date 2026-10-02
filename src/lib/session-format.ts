@@ -14,14 +14,15 @@ export function sessionDayLabel(
     // render as the 19th for anyone behind it.
     const [year, month, day] = session.workoutDate.split('-').map(Number);
     if (year && month && day) {
-      return formatDay(new Date(year, month - 1, day));
+      return dayLabel(new Date(year, month - 1, day));
     }
   }
 
-  return formatDay(session.endedAt ?? session.startedAt);
+  return dayLabel(session.endedAt ?? session.startedAt);
 }
 
-function formatDay(date: Date): string {
+/** A date as a lifter reads it — "Tue, Sep 29". */
+export function dayLabel(date: Date): string {
   return date.toLocaleDateString(undefined, {
     weekday: 'short',
     month: 'short',
