@@ -7,7 +7,7 @@ describe('ExercisePickerDialog', () => {
     const onPick = jest.fn();
     await render(<ExercisePickerDialog onCancel={jest.fn()} onPick={onPick} />);
 
-    await userEvent.type(screen.getByLabelText('Search'), 'goblet squat');
+    await userEvent.paste(screen.getByLabelText('Search'), 'goblet squat');
     await userEvent.press(screen.getByLabelText('Add Goblet squat'));
 
     expect(onPick).toHaveBeenCalledWith({
@@ -36,7 +36,7 @@ describe('ExercisePickerDialog', () => {
     const onPick = jest.fn();
     await render(<ExercisePickerDialog onCancel={jest.fn()} onPick={onPick} />);
 
-    await userEvent.type(screen.getByLabelText('Search'), 'sauna sit');
+    await userEvent.paste(screen.getByLabelText('Search'), 'sauna sit');
     await userEvent.press(screen.getByText('Add “sauna sit”'));
 
     expect(onPick).toHaveBeenCalledWith(
@@ -49,7 +49,7 @@ describe('ExercisePickerDialog', () => {
     const onPick = jest.fn();
     await render(<ExercisePickerDialog onCancel={jest.fn()} onPick={onPick} />);
 
-    await userEvent.type(screen.getByLabelText('Search'), 'sauna sit');
+    await userEvent.paste(screen.getByLabelText('Search'), 'sauna sit');
     await userEvent.press(screen.getByText('Add “sauna sit”'));
 
     expect(onPick.mock.calls[0][0].id).toMatch(/^custom-[0-9a-f-]{36}$/);
@@ -59,7 +59,7 @@ describe('ExercisePickerDialog', () => {
     const onPick = jest.fn();
     await render(<ExercisePickerDialog onCancel={jest.fn()} onPick={onPick} />);
 
-    await userEvent.type(screen.getByLabelText('Search'), 'sauna sit');
+    await userEvent.paste(screen.getByLabelText('Search'), 'sauna sit');
     await userEvent.press(screen.getByLabelText('Hold time'));
     await userEvent.press(screen.getByText('Add “sauna sit”'));
 
@@ -70,7 +70,7 @@ describe('ExercisePickerDialog', () => {
   it('does not offer to duplicate an exercise the catalog already has', async () => {
     await render(<ExercisePickerDialog onCancel={jest.fn()} onPick={jest.fn()} />);
 
-    await userEvent.type(screen.getByLabelText('Search'), 'Bench press');
+    await userEvent.paste(screen.getByLabelText('Search'), 'Bench press');
 
     expect(screen.queryByText('Add “Bench press”')).toBeNull();
   });

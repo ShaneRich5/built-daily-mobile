@@ -27,4 +27,10 @@ module.exports = {
     ...preset.moduleNameMapper,
   },
   setupFiles: [...(preset.setupFiles ?? []), '<rootDir>/jest/setup.js'],
+  // Jest's 5s default is tight for component tests that mount a long list and
+  // drive it through `userEvent`: the exercise picker renders the whole
+  // exercise catalog, which takes ~0.5s here and several times that on a CI
+  // runner. Raised so a slow machine reports a real failure rather than a
+  // timeout.
+  testTimeout: 20000,
 };
