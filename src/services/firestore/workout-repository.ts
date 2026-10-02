@@ -18,9 +18,18 @@ import {
   type SessionPatch,
 } from '@/services/firestore/mappers';
 import { getDb } from '@/services/firebase';
+import { orderRecentSessions } from '@/lib/session-list';
 import type { WorkoutPlan, WorkoutSession } from '@/types/workout';
 
 const RECENT_SESSION_LIMIT = 30;
+
+/**
+ * Unfinished workouts are read without an `orderBy`, so none is excluded for
+ * missing a field, which means Firestore returns an arbitrary subset once the
+ * limit bites. A lifter has one workout open, occasionally a few abandoned
+ * ones; this is far above that, and `orderRecentSessions` sorts them.
+ */
+const IN_PROGRESS_LIMIT = 20;
 
 type Unsubscribe = () => void;
 
@@ -30,31 +39,60 @@ type Listener<T> = {
 };
 
 /**
- * Most recent sessions, newest first. In-progress sessions have a null `endedAt`
- * and Firestore sorts nulls last on a descending order, so they are lifted to the
- * top here — matching how the web app presents them.
+ * The recent workouts: the ones still in progress, and the most recent
+ * completed ones, newest first.
+ *
+ * Two queries rather than one. Ordering a combined query by `endedAt` puts the
+ * in-progress sessions — whose `endedAt` is null — last, where the limit cuts
+ * them off entirely for anyone with a page's worth of finished workouts, and
+ * silently drops any document that has no `endedAt` field at all. Splitting
+ * them means the workout a lifter is in the middle of is never the one that
+ * falls off the end.
+ *
+ * Both listeners feed one `onData`, which fires once both have reported, so
+ * the list never paints half of itself.
  */
 export function subscribeToRecentSessions(
   userId: string,
   { onData, onError }: Listener<WorkoutSession[]>,
 ): Unsubscribe {
-  const sessions = query(
-    collection(getDb(), 'users', userId, 'sessions'),
-    where('status', 'in', ['completed', 'in_progress']),
-    orderBy('endedAt', 'desc'),
-    limit(RECENT_SESSION_LIMIT),
-  );
+  const sessions = collection(getDb(), 'users', userId, 'sessions');
 
-  return onSnapshot(
-    sessions,
+  let inProgress: WorkoutSession[] | null = null;
+  let completed: WorkoutSession[] | null = null;
+
+  const emit = () => {
+    if (inProgress === null || completed === null) return;
+    onData(orderRecentSessions(inProgress, completed));
+  };
+
+  const unsubscribeInProgress = onSnapshot(
+    query(sessions, where('status', '==', 'in_progress'), limit(IN_PROGRESS_LIMIT)),
     (snapshot) => {
-      const mapped = snapshot.docs.map((doc) => toWorkoutSession(doc.id, doc.data()));
-      const inProgress = mapped.filter((s) => s.status === 'in_progress');
-      const finished = mapped.filter((s) => s.status !== 'in_progress');
-      onData([...inProgress, ...finished]);
+      inProgress = snapshot.docs.map((doc) => toWorkoutSession(doc.id, doc.data()));
+      emit();
     },
     onError,
   );
+
+  const unsubscribeCompleted = onSnapshot(
+    query(
+      sessions,
+      where('status', '==', 'completed'),
+      orderBy('endedAt', 'desc'),
+      limit(RECENT_SESSION_LIMIT),
+    ),
+    (snapshot) => {
+      completed = snapshot.docs.map((doc) => toWorkoutSession(doc.id, doc.data()));
+      emit();
+    },
+    onError,
+  );
+
+  return () => {
+    unsubscribeInProgress();
+    unsubscribeCompleted();
+  };
 }
 
 /**
