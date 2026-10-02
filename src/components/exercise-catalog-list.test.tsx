@@ -22,11 +22,11 @@ describe('ExerciseCatalogList', () => {
     expect(screen.getByText('No exercises match “sauna sit”.')).toBeTruthy();
   });
 
-  it('reports what was typed', async () => {
+  it('reports what was entered', async () => {
     const onChangeQuery = jest.fn();
     await render(<ExerciseCatalogList query="" onChangeQuery={onChangeQuery} />);
 
-    await userEvent.type(screen.getByLabelText('Search'), 'rdl');
+    await userEvent.paste(screen.getByLabelText('Search'), 'rdl');
 
     expect(onChangeQuery).toHaveBeenCalled();
   });
