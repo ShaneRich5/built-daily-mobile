@@ -1,3 +1,4 @@
+import { isLoggedSet } from '@/lib/exercise-history';
 import type {
   ExerciseMetric,
   SessionLine,
@@ -190,6 +191,25 @@ export type DraftLine = {
   metric: ExerciseMetric;
   sets: DraftSet[];
 };
+
+/**
+ * Whether nothing has been entered against this exercise yet — including the
+ * fields this editor does not show, which a set logged on the web may carry.
+ *
+ * What it gates: offering to fill the line in from last time. Doing that over
+ * numbers somebody has already typed would throw their work away.
+ */
+export function isDraftLineBlank(line: DraftLine): boolean {
+  return line.sets.every(
+    (set) =>
+      set.weight.trim() === '' &&
+      set.reps.trim() === '' &&
+      set.durationSec.trim() === '' &&
+      set.distanceMiles.trim() === '' &&
+      set.note.trim() === '' &&
+      !isLoggedSet(set.original),
+  );
+}
 
 export function toDraftSet(set: SetLog): DraftSet {
   return {

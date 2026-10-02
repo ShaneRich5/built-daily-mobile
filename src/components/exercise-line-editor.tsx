@@ -7,7 +7,16 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { type DraftLine, type DraftSet, editableSetFields, nextDraftSet } from '@/lib/session-edit';
+import { startingSetsFrom, type ExercisePerformance } from '@/lib/exercise-history';
+import {
+  type DraftLine,
+  type DraftSet,
+  editableSetFields,
+  isDraftLineBlank,
+  nextDraftSet,
+  toDraftSet,
+} from '@/lib/session-edit';
+import { dayLabel, formatSet } from '@/lib/session-format';
 
 type ExerciseLineEditorProps = {
   line: DraftLine;
@@ -16,6 +25,8 @@ type ExerciseLineEditorProps = {
   onChangeNote: (note: string) => void;
   onRemove: () => void;
   disabled: boolean;
+  /** The last time this exercise was done, when it is in the recent window. */
+  history?: ExercisePerformance;
 };
 
 /** One exercise: its name, its note, and the sets under it. */
@@ -26,8 +37,20 @@ export function ExerciseLineEditor({
   onChangeNote,
   onRemove,
   disabled,
+  history,
 }: ExerciseLineEditorProps) {
   const fields = editableSetFields(line.metric);
+
+  // Only offered where it cannot destroy anything: nothing typed yet, and the
+  // exercise measured the same way it was then — a move logged for reps has
+  // nothing to hand a line now being timed.
+  const canUseHistory =
+    history !== undefined && history.metric === line.metric && isDraftLineBlank(line);
+
+  const useLastTime = () => {
+    if (!history) return;
+    onChangeLine({ ...line, sets: startingSetsFrom(history).map(toDraftSet) });
+  };
 
   const updateSet = (index: number, patch: Partial<DraftSet>) => {
     onChangeLine({
@@ -56,6 +79,14 @@ export function ExerciseLineEditor({
         placeholder="Unnamed exercise"
         editable={!disabled}
       />
+
+      {history ? (
+        <LastTime
+          history={history}
+          onUse={canUseHistory ? useLastTime : undefined}
+          disabled={disabled}
+        />
+      ) : null}
 
       <NoteField
         label={`Note for ${line.nameSnapshot || 'this exercise'}`}
@@ -133,6 +164,42 @@ export function ExerciseLineEditor({
   );
 }
 
+/**
+ * What this exercise looked like last time, and a way to start from it. The
+ * sets are spelled out rather than summarised — "135 lb × 8 · 135 lb × 8 ·
+ * 145 lb × 6" is what tells a lifter whether to repeat the weight or add to
+ * it, which a single top set would not.
+ */
+function LastTime({
+  history,
+  onUse,
+  disabled,
+}: {
+  history: ExercisePerformance;
+  onUse?: () => void;
+  disabled: boolean;
+}) {
+  const sets = history.sets.map((set) => formatSet(set, history.metric)).join(' · ');
+
+  return (
+    <ThemedView type="backgroundSelected" style={styles.lastTime}>
+      <ThemedText type="small" themeColor="textSecondary">
+        Last time · {dayLabel(history.performedAt)}
+      </ThemedText>
+      <ThemedText type="small">{sets}</ThemedText>
+
+      {onUse ? (
+        <ActionButton
+          label="Start from last time"
+          variant="secondary"
+          onPress={onUse}
+          disabled={disabled}
+        />
+      ) : null}
+    </ThemedView>
+  );
+}
+
 function SetNumberInput({
   label,
   value,
@@ -173,6 +240,11 @@ const styles = StyleSheet.create({
   },
   set: {
     gap: Spacing.one,
+  },
+  lastTime: {
+    borderRadius: Spacing.two,
+    gap: Spacing.one,
+    padding: Spacing.two,
   },
   setRow: {
     alignItems: 'center',
