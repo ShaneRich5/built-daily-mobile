@@ -1,6 +1,7 @@
 import { render, screen, userEvent } from '@testing-library/react-native';
 
 import { ExerciseLineEditor } from '@/components/exercise-line-editor';
+import type { ExercisePerformance } from '@/lib/exercise-history';
 import { type DraftLine, toDraftLines } from '@/lib/session-edit';
 import type { SessionLine, SetLog } from '@/types/workout';
 
@@ -22,7 +23,7 @@ function draft(metric: SessionLine['metric'], sets: SetLog[]): DraftLine {
   ])[0];
 }
 
-function setup(line: DraftLine) {
+function setup(line: DraftLine, history?: ExercisePerformance) {
   const onChangeLine = jest.fn();
   const onRemove = jest.fn();
 
@@ -37,9 +38,17 @@ function setup(line: DraftLine) {
         onChangeNote={jest.fn()}
         onRemove={onRemove}
         disabled={false}
+        history={history}
       />
     ),
   };
+}
+
+function performance(
+  sets: SetLog[],
+  metric: SessionLine['metric'] = 'weight_reps',
+): ExercisePerformance {
+  return { sessionId: 'previous', performedAt: new Date(2026, 8, 29), metric, sets };
 }
 
 describe('ExerciseLineEditor', () => {
@@ -174,5 +183,79 @@ describe('set notes', () => {
 
     const next = onChangeLine.mock.calls[0][0] as DraftLine;
     expect(next.sets[1]).toMatchObject({ weight: '135', note: '' });
+  });
+
+  describe('last time', () => {
+    const lastTime = performance([
+      { ...emptySet, weight: 135, reps: 8 },
+      { ...emptySet, weight: 145, reps: 6 },
+    ]);
+
+    it('says nothing when the exercise has no history', async () => {
+      const { ui } = setup(draft('weight_reps', [emptySet]));
+      await render(ui);
+
+      expect(screen.queryByText(/Last time/)).toBeNull();
+    });
+
+    it('spells out every set from last time, not just the top one', async () => {
+      const { ui } = setup(draft('weight_reps', [emptySet]), lastTime);
+      await render(ui);
+
+      expect(screen.getByText('135 lb × 8 · 145 lb × 6')).toBeTruthy();
+    });
+
+    it('says when it was', async () => {
+      const { ui } = setup(draft('weight_reps', [emptySet]), lastTime);
+      await render(ui);
+
+      expect(screen.getByText(/Last time · /)).toBeTruthy();
+    });
+
+    it('fills the sets in from last time', async () => {
+      const { ui, onChangeLine } = setup(draft('weight_reps', [emptySet]), lastTime);
+      await render(ui);
+
+      await userEvent.press(screen.getByText('Start from last time'));
+
+      const next = onChangeLine.mock.calls[0][0] as DraftLine;
+      expect(next.sets.map((set) => [set.weight, set.reps])).toEqual([
+        ['135', '8'],
+        ['145', '6'],
+      ]);
+    });
+
+    // Overwriting numbers somebody already typed would throw their work away.
+    it('offers no prefill once something has been logged', async () => {
+      const { ui } = setup(draft('weight_reps', [{ ...emptySet, weight: 95 }]), lastTime);
+      await render(ui);
+
+      expect(screen.getByText(/Last time · /)).toBeTruthy();
+      expect(screen.queryByText('Start from last time')).toBeNull();
+    });
+
+    // A move logged for reps has nothing to hand a line now being timed.
+    it('offers no prefill when the exercise is measured differently now', async () => {
+      const { ui } = setup(draft('duration', [emptySet]), lastTime);
+      await render(ui);
+
+      expect(screen.queryByText('Start from last time')).toBeNull();
+    });
+
+    it('still shows the history while the form is saving', async () => {
+      await render(
+        <ExerciseLineEditor
+          line={draft('weight_reps', [emptySet])}
+          note=""
+          onChangeLine={jest.fn()}
+          onChangeNote={jest.fn()}
+          onRemove={jest.fn()}
+          disabled
+          history={lastTime}
+        />,
+      );
+
+      expect(screen.getByText('135 lb × 8 · 145 lb × 6')).toBeTruthy();
+    });
   });
 });

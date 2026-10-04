@@ -8,6 +8,7 @@ import { ExercisePickerDialog } from '@/components/exercise-picker-dialog';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useExerciseHistory } from '@/hooks/use-exercise-history';
 import { useSessionSave } from '@/hooks/use-session-save';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
 import type { CatalogExercise } from '@/lib/exercise-catalog';
@@ -50,6 +51,8 @@ export default function EditSessionExercisesScreen() {
 
 function ExercisesForm({ session }: { session: WorkoutSession }) {
   const { save, isSaving, error } = useSessionSave(session.id);
+  // Keyed by exerciseId; the workout being edited is kept out of its own history.
+  const history = useExerciseHistory(session.id);
 
   // Seeded once from the loaded session. The live subscription keeps running
   // underneath, but re-seeding on every snapshot would overwrite what is being
@@ -93,6 +96,7 @@ function ExercisesForm({ session }: { session: WorkoutSession }) {
             key={line.lineId}
             line={line}
             note={notes[line.lineId] ?? ''}
+            history={history.get(line.exerciseId)}
             disabled={isSaving}
             onChangeLine={(next) =>
               setLines((current) => current.map((l, i) => (i === index ? next : l)))
