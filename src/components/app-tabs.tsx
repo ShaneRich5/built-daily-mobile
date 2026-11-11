@@ -40,6 +40,11 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf="calendar" md="calendar_month" />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="groups">
+        <NativeTabs.Trigger.Label>Groups</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} md="group" />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="progress">
         <NativeTabs.Trigger.Label>Progress</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" md="trending_up" />

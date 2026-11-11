@@ -5,6 +5,7 @@ import { PlannerScreen } from '@/components/planner/planner-screen';
 import { useSession } from '@/contexts/session';
 import { bench } from '@/lib/session/session-test-helpers';
 import { confirm } from '@/services/confirm';
+import { syncGroups } from '@/services/group-sync';
 import {
   moveScheduledWorkouts,
   skipScheduledWorkout,
@@ -198,6 +199,8 @@ describe('PlannerScreen', () => {
       planId: 'starter-upper',
       exerciseIds: ['bench', 'row', 'ohp', 'pullup', 'dip'],
     });
+    // Groups see the days ahead that are planned.
+    expect(syncGroups).toHaveBeenCalled();
   });
 
   it('plans one of the lifter’s own templates', async () => {

@@ -20,6 +20,7 @@ import {
 import { saveProgressSettings } from '@/services/firestore/planner-repository';
 import { logBodyWeight, subscribeToBodyWeight } from '@/services/firestore/progress-repository';
 import { subscribeToRecentSessions } from '@/services/firestore/workout-repository';
+import { syncGroups } from '@/services/group-sync';
 import type { Activity } from '@/types/activity';
 import type { DatedScheduledWorkout } from '@/types/planner';
 import {
@@ -112,12 +113,14 @@ export function useProgressData() {
       if (!uid) return false;
       try {
         await saveProgressSettings(uid, settings);
+        // Groups show progress against the weekly goal.
+        if (user) syncGroups(user);
         return true;
       } catch {
         return false;
       }
     },
-    [uid],
+    [uid, user],
   );
 
   const logWeight = useCallback(

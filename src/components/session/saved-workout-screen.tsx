@@ -37,6 +37,7 @@ import {
 } from '@/lib/session/session-summary';
 import { confirm } from '@/services/confirm';
 import { deleteSession, updateSession } from '@/services/firestore/workout-repository';
+import { syncGroups } from '@/services/group-sync';
 import type { SessionLine, WorkoutSession } from '@/types/workout';
 
 /**
@@ -82,6 +83,7 @@ export function SavedWorkoutScreen({ session }: { session: WorkoutSession }) {
     setError(null);
     try {
       await updateSession(uid, session.id, applyStatusTransition(session, 'in_progress'));
+      if (user) syncGroups(user);
     } catch {
       setError('Could not reopen this workout. Check your connection and try again.');
     }
@@ -102,6 +104,7 @@ export function SavedWorkoutScreen({ session }: { session: WorkoutSession }) {
     setError(null);
     try {
       await deleteSession(uid, session.id);
+      if (user) syncGroups(user);
       router.replace('/');
     } catch {
       setError('Could not delete this workout. Check your connection and try again.');

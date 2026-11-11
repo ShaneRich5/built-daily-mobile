@@ -5,6 +5,7 @@ import { WorkoutScreen } from '@/components/session/workout-screen';
 import { useSession } from '@/contexts/session';
 import { bench, dips, fly, line, log, session } from '@/lib/session/session-test-helpers';
 import { confirm } from '@/services/confirm';
+import { syncGroups } from '@/services/group-sync';
 import {
   deleteSession,
   subscribeToRecentSessions,
@@ -141,6 +142,8 @@ describe('a workout in progress', () => {
     await user().press(screen.getByRole('button', { name: 'Finish workout' }));
 
     expect(lastSave()).toMatchObject({ status: 'completed', endedAt: expect.any(Date) });
+    // Groups see the day and the workout's name.
+    expect(syncGroups).toHaveBeenCalled();
   });
 
   // Skipping a maybe is not a miss, so it leaves no trace in the saved workout.

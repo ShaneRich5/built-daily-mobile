@@ -11,6 +11,7 @@ import {
   deleteScheduledWorkout,
 } from '@/services/firestore/planner-repository';
 import type { NewScheduledWorkout } from '@/services/firestore/planner-mappers';
+import { syncGroups } from '@/services/group-sync';
 import type { ScheduledWorkout } from '@/types/planner';
 
 const FAILURE = 'Could not update your plan. Check your connection and try again.';
@@ -36,6 +37,8 @@ export function usePlannerActions() {
       setError(null);
       try {
         await write(uid);
+        // Days planned and trained are what groups see; keep them in step.
+        if (user) syncGroups(user);
         return true;
       } catch {
         setError(FAILURE);
@@ -44,7 +47,7 @@ export function usePlannerActions() {
         setBusy(false);
       }
     },
-    [uid],
+    [uid, user],
   );
 
   return {

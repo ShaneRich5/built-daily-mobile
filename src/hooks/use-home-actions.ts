@@ -6,6 +6,7 @@ import {
   moveScheduledWorkouts,
   skipScheduledWorkout,
 } from '@/services/firestore/home-repository';
+import { syncGroups } from '@/services/group-sync';
 import type { NewActivity } from '@/types/activity';
 
 /**
@@ -40,6 +41,8 @@ export function useHomeActions() {
       setError(null);
       try {
         await write(uid);
+        // Days planned and trained are what groups see; keep them in step.
+        if (user) syncGroups(user);
         return true;
       } catch {
         if (failure) setError(failure);
@@ -48,7 +51,7 @@ export function useHomeActions() {
         setBusy(false);
       }
     },
-    [uid],
+    [uid, user],
   );
 
   const moveEntry = useCallback(

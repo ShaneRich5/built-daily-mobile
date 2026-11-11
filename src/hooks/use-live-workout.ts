@@ -6,6 +6,7 @@ import { applyStatusTransition } from '@/lib/session-edit';
 import { sessionReducer } from '@/lib/session/session-reducer';
 import { finishState, sessionContent, sessionStateFrom } from '@/lib/session/session-state';
 import { deleteSession, updateSession } from '@/services/firestore/workout-repository';
+import { syncGroups } from '@/services/group-sync';
 import { newLineId } from '@/services/ids';
 import type { LineSection, WorkoutSession } from '@/types/workout';
 
@@ -73,12 +74,14 @@ export function useLiveWorkout(session: WorkoutSession, { autosave }: Options) {
       await updateSession(uid, sessionId, toSave);
       setSavedJson(savingJson);
       setStatus('idle');
+      // A finished workout's day, name or existence is what groups see.
+      if (finished && user) syncGroups(user);
       return true;
     } catch {
       setStatus('error');
       return false;
     }
-  }, [uid, sessionId]);
+  }, [uid, sessionId, finished, user]);
 
   useEffect(() => {
     if (!autosave || !isDirty) return;
@@ -111,13 +114,14 @@ export function useLiveWorkout(session: WorkoutSession, { autosave }: Options) {
         ...applyStatusTransition(session, 'completed'),
       });
       setStatus('idle');
+      if (user) syncGroups(user);
       return true;
     } catch {
       stopped.current = false;
       setStatus('error');
       return false;
     }
-  }, [uid, sessionId, state, session]);
+  }, [uid, sessionId, state, session, user]);
 
   /** Deletes the workout for good. */
   const discard = useCallback(async (): Promise<boolean> => {
@@ -126,13 +130,14 @@ export function useLiveWorkout(session: WorkoutSession, { autosave }: Options) {
     stopped.current = true;
     try {
       await deleteSession(uid, sessionId);
+      if (finished && user) syncGroups(user);
       return true;
     } catch {
       stopped.current = false;
       setStatus('error');
       return false;
     }
-  }, [uid, sessionId]);
+  }, [uid, sessionId, finished, user]);
 
   /** Adds exercises in the order picked, minting the line id each one needs. */
   const addExercises = useCallback(
