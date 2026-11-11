@@ -22,7 +22,16 @@ import { getDb } from '@/services/firebase';
 import { orderRecentSessions } from '@/lib/session-list';
 import type { WorkoutPlan, WorkoutSession } from '@/types/workout';
 
-const RECENT_SESSION_LIMIT = 30;
+/**
+ * How many finished workouts every screen reads. Enough for Home's 16-week
+ * chart and a fair "longest streak" — about a year at three workouts a week —
+ * and the same number the web app's home reads.
+ *
+ * One number for every caller on purpose: an identical query is served from
+ * the cache Firestore already holds, so Home, the history list and "last time"
+ * on the workout screen cost one read between them rather than three.
+ */
+const RECENT_SESSION_LIMIT = 160;
 
 /**
  * Unfinished workouts are read without an `orderBy`, so none is excluded for

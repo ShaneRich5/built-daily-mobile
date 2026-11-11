@@ -2,12 +2,7 @@ import { TabList, Tabs, TabSlot, TabTrigger, type TabTriggerSlotProps } from 'ex
 import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import {
-  DumbbellIcon,
-  HouseIcon,
-  ListChecksIcon,
-  type LucideIcon,
-} from '@/components/ui/icons';
+import { HouseIcon, ListChecksIcon, type LucideIcon } from '@/components/ui/icons';
 import { FontFamily, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -31,9 +26,6 @@ export default function AppTabs() {
         </TabTrigger>
         <TabTrigger name="plans" href="/plans" asChild>
           <TabButton icon={ListChecksIcon}>Plans</TabButton>
-        </TabTrigger>
-        <TabTrigger name="exercises" href="/exercises" asChild>
-          <TabButton icon={DumbbellIcon}>Exercises</TabButton>
         </TabTrigger>
       </TabList>
     </Tabs>

@@ -2,14 +2,26 @@ import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { useSession } from '@/contexts/session';
-import { blankSession, sessionFromPlan } from '@/lib/session-start';
+import {
+  blankSession,
+  type NewSession,
+  sessionFromPlan,
+  sessionFromPlanned,
+} from '@/lib/session-start';
 import { createSession } from '@/services/firestore/workout-repository';
 import { newLineId } from '@/services/ids';
+import type { ScheduledWorkout } from '@/types/planner';
 import type { WorkoutPlan } from '@/types/workout';
 
 type State = {
   /** Starts an empty workout, or one built from a saved plan. */
   start: (plan?: WorkoutPlan) => Promise<void>;
+  /**
+   * Starts a workout pencilled in on the planner. Pass the template it came
+   * from when it is one of the lifter's own, so its set counts and notes come
+   * along; without one, the entry's own exercise list is used.
+   */
+  startPlanned: (entry: ScheduledWorkout, plan?: WorkoutPlan) => Promise<void>;
   isStarting: boolean;
   /**
    * The plan currently being started, if it came from one. A list of plans
@@ -31,6 +43,10 @@ type State = {
  *
  * Navigation lives here rather than in each caller so starting from the home
  * screen and starting from a plan cannot drift to different destinations.
+ *
+ * Starting a planned workout writes nothing to the planner entry. Neither app
+ * marks a plan completed: a planned day counts as done when a workout was
+ * logged on it, which both work out from the sessions themselves.
  */
 export function useStartWorkout(): State {
   const { user } = useSession();
@@ -39,21 +55,19 @@ export function useStartWorkout(): State {
   const [startingPlanId, setStartingPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const start = useCallback(
-    async (plan?: WorkoutPlan) => {
+  const begin = useCallback(
+    async (build: (now: Date) => NewSession, planId: string | null) => {
       if (!uid || isStarting) {
         if (!uid) setError('You are not signed in.');
         return;
       }
 
       setIsStarting(true);
-      setStartingPlanId(plan?.id ?? null);
+      setStartingPlanId(planId);
       setError(null);
 
       try {
-        const now = new Date();
-        const draft = plan ? sessionFromPlan(plan, now, newLineId) : blankSession(now);
-        const sessionId = await createSession(uid, draft);
+        const sessionId = await createSession(uid, build(new Date()));
 
         // Straight to the workout: it is in progress, so the route shows the
         // logging screen, with the first exercise open.
@@ -68,5 +82,26 @@ export function useStartWorkout(): State {
     [uid, isStarting],
   );
 
-  return { start, isStarting, startingPlanId, error };
+  const start = useCallback(
+    (plan?: WorkoutPlan) =>
+      begin(
+        (now) => (plan ? sessionFromPlan(plan, now, newLineId) : blankSession(now)),
+        plan?.id ?? null,
+      ),
+    [begin],
+  );
+
+  const startPlanned = useCallback(
+    (entry: ScheduledWorkout, plan?: WorkoutPlan) =>
+      begin(
+        (now) =>
+          plan
+            ? { ...sessionFromPlan(plan, now, newLineId), title: entry.label.trim() || plan.name }
+            : sessionFromPlanned(entry, now, newLineId),
+        plan?.id ?? null,
+      ),
+    [begin],
+  );
+
+  return { start, startPlanned, isStarting, startingPlanId, error };
 }

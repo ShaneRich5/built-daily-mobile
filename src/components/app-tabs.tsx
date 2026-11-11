@@ -13,7 +13,8 @@ import { useTheme } from '@/hooks/use-theme';
  *
  * The redesign's bar is Home / Planner / Groups / Progress. Those destinations
  * arrive one phase at a time; until each exists, the tabs that already work
- * stay, so the bar never has a dead tab.
+ * stay, so the bar never has a dead tab. The exercise catalog has moved off the
+ * bar and into Home's account menu.
  */
 export default function AppTabs() {
   const theme = useTheme();
@@ -37,11 +38,6 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="plans">
         <NativeTabs.Trigger.Label>Plans</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="list.bullet.rectangle" md="list_alt" />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="exercises">
-        <NativeTabs.Trigger.Label>Exercises</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="dumbbell" md="fitness_center" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );
