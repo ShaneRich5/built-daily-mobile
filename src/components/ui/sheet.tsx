@@ -1,8 +1,9 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { createContext, type ReactNode, use, useEffect, useState } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -15,33 +16,37 @@ import { XIcon } from '@/components/ui/icons';
 import { MaxContentWidth, Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-export type SheetProps = {
-  visible: boolean;
-  onClose: () => void;
-  title: string;
-  /** One line under the title saying what the sheet will do. */
-  subtitle?: string;
-  children: ReactNode;
-  /** Pinned under the content: the confirm button and its side links. */
-  footer?: ReactNode;
-  /**
-   * `content` hugs what is inside it (a few choices). `tall` takes most of the
-   * screen and gives `children` the room to scroll (search results).
-   */
-  size?: 'content' | 'tall';
-  testID?: string;
-};
+/**
+ * `content` hugs what is inside it (a few choices). `tall` takes most of the
+ * screen and gives its body the room to scroll (search results, details).
+ */
+export type SheetSize = 'content' | 'tall';
 
 /** How far the panel travels as it settles in — a nudge, not a full slide. */
 const ENTER_OFFSET = 32;
 
+const SheetCloseContext = createContext<(() => void) | null>(null);
+
+export type SheetHostProps = {
+  visible: boolean;
+  onClose: () => void;
+  size?: SheetSize;
+  /** One `SheetFrame`. */
+  children: ReactNode;
+  testID?: string;
+};
+
 /**
- * A bottom sheet, as the designs draw them: a scrim, a panel with 20px top
- * corners and a grabber, a title row with a close button, and an optional
- * pinned footer.
+ * The modal shell of a bottom sheet: the scrim, and the rounded panel that
+ * rises from the bottom edge. What goes in the panel is a `SheetFrame`.
  *
- * Built on React Native's `Modal` rather than a sheet library — no native code
- * beyond what Expo Go ships, and the sheet hands its result back through plain
+ * The two are separate so one host can stay up while its frame changes — a
+ * screen with several sheets (details → swap → search) renders a single host
+ * and switches the frame inside it. Closing one `Modal` and opening another in
+ * the same breath is unreliable on iOS; never unmounting the modal avoids it.
+ *
+ * Built on React Native's `Modal` rather than a sheet library: no native code
+ * beyond what Expo Go ships, and a sheet hands its result back through plain
  * props instead of through a route. It closes on the scrim, the close button
  * and the Android back button; there is no drag-to-dismiss.
  *
@@ -49,16 +54,13 @@ const ENTER_OFFSET = 32;
  * it — the scrim included. That is intended: the close button is the way out
  * there, and a second, screen-sized "Close" would only be noise.
  */
-export function Sheet({
+export function SheetHost({
   visible,
   onClose,
-  title,
-  subtitle,
-  children,
-  footer,
   size = 'content',
+  children,
   testID,
-}: SheetProps) {
+}: SheetHostProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   // State, not a ref: the value is read while rendering (it is in the style
@@ -69,7 +71,12 @@ export function Sheet({
     if (!visible) return;
 
     offset.setValue(ENTER_OFFSET);
-    Animated.timing(offset, { toValue: 0, duration: 180, useNativeDriver: true }).start();
+    Animated.timing(offset, {
+      toValue: 0,
+      duration: 180,
+      // The native driver does not exist on web, and asking for it there warns.
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
   }, [visible, offset]);
 
   return (
@@ -93,7 +100,7 @@ export function Sheet({
           accessibilityViewIsModal
           style={[
             styles.panel,
-            size === 'tall' && styles.tall,
+            size === 'tall' && styles.fill,
             {
               backgroundColor: theme.surface,
               // A tall sheet stops short of the status bar so the screen behind
@@ -102,42 +109,92 @@ export function Sheet({
               transform: [{ translateY: offset }],
             },
           ]}>
-          <View style={styles.grabberRow}>
-            <View style={[styles.grabber, { backgroundColor: theme.borderStrong }]} />
-          </View>
-
-          <View style={styles.header}>
-            <View style={styles.titles}>
-              <ThemedText type="heading" accessibilityRole="header">
-                {title}
-              </ThemedText>
-              {subtitle ? <ThemedText type="caption">{subtitle}</ThemedText> : null}
-            </View>
-            <IconButton
-              icon={XIcon}
-              accessibilityLabel="Close"
-              onPress={onClose}
-              variant="soft"
-              size={40}
-            />
-          </View>
-
-          <View style={[styles.body, size === 'tall' && styles.bodyTall]}>{children}</View>
-
-          {footer ? (
-            <View
-              style={[
-                styles.footer,
-                { borderTopColor: theme.borderSubtle, paddingBottom: Math.max(insets.bottom, 20) },
-              ]}>
-              {footer}
-            </View>
-          ) : (
-            <View style={{ height: Math.max(insets.bottom, 20) }} />
-          )}
+          <SheetCloseContext value={onClose}>{children}</SheetCloseContext>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
+  );
+}
+
+export type SheetFrameProps = {
+  title: string;
+  /** One line under the title saying what the sheet will do. */
+  subtitle?: string;
+  children: ReactNode;
+  /** Pinned under the content: the confirm button and its side links. */
+  footer?: ReactNode;
+  /**
+   * Lets the body fill the panel and scroll inside it. Set it on the frame of a
+   * `tall` host; a `content` host sizes itself to the body instead.
+   */
+  fill?: boolean;
+  /** Drops the side gutters, for bodies that draw edge-to-edge rows. */
+  flush?: boolean;
+};
+
+/** What a sheet shows: grabber, title row with a close button, body, footer. */
+export function SheetFrame({
+  title,
+  subtitle,
+  children,
+  footer,
+  fill = false,
+  flush = false,
+}: SheetFrameProps) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const onClose = use(SheetCloseContext);
+  const bottom = Math.max(insets.bottom, 20);
+
+  return (
+    <View style={fill && styles.fill}>
+      <View style={styles.grabberRow}>
+        <View style={[styles.grabber, { backgroundColor: theme.borderStrong }]} />
+      </View>
+
+      <View style={styles.header}>
+        <View style={styles.titles}>
+          <ThemedText type="heading" accessibilityRole="header">
+            {title}
+          </ThemedText>
+          {subtitle ? <ThemedText type="caption">{subtitle}</ThemedText> : null}
+        </View>
+        {onClose ? (
+          <IconButton
+            icon={XIcon}
+            accessibilityLabel="Close"
+            onPress={onClose}
+            variant="soft"
+            size={40}
+          />
+        ) : null}
+      </View>
+
+      <View style={[styles.body, flush && styles.flush, fill && styles.fill]}>{children}</View>
+
+      {footer ? (
+        <View
+          style={[styles.footer, { borderTopColor: theme.borderSubtle, paddingBottom: bottom }]}>
+          {footer}
+        </View>
+      ) : (
+        <View style={{ height: bottom }} />
+      )}
+    </View>
+  );
+}
+
+export type SheetProps = Omit<SheetHostProps, 'children'> & Omit<SheetFrameProps, 'fill'>;
+
+/**
+ * A bottom sheet with one fixed purpose: a host and its frame together. Screens
+ * that move between several sheets use `SheetHost` and `SheetFrame` directly.
+ */
+export function Sheet({ visible, onClose, size = 'content', testID, ...frame }: SheetProps) {
+  return (
+    <SheetHost visible={visible} onClose={onClose} size={size} testID={testID}>
+      <SheetFrame {...frame} fill={size === 'tall'} />
+    </SheetHost>
   );
 }
 
@@ -153,7 +210,7 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     width: '100%',
   },
-  tall: {
+  fill: {
     flex: 1,
   },
   grabberRow: {
@@ -181,8 +238,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-  bodyTall: {
-    flex: 1,
+  flush: {
+    paddingHorizontal: 0,
   },
   footer: {
     borderTopWidth: 1,

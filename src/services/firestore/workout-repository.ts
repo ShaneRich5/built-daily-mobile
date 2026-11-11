@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   limit,
   onSnapshot,
@@ -166,4 +167,13 @@ export async function updateSession(
   patch: SessionPatch,
 ): Promise<void> {
   await updateDoc(doc(getDb(), 'users', userId, 'sessions', sessionId), fromSessionPatch(patch));
+}
+
+/**
+ * Deletes a workout for good. The web app does the same from its "Delete
+ * workout" menu: the security rules do not accept a `discarded` status, so
+ * there is no softer way to throw a workout away.
+ */
+export async function deleteSession(userId: string, sessionId: string): Promise<void> {
+  await deleteDoc(doc(getDb(), 'users', userId, 'sessions', sessionId));
 }

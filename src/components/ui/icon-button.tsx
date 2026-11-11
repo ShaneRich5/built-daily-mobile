@@ -14,6 +14,8 @@ export type IconButtonProps = {
    * that closes a sheet, `plain` an icon with no chrome (back arrows, row menus).
    */
   variant?: 'outline' | 'soft' | 'plain';
+  /** Greys the icon, for a control that should not compete with what is beside it. */
+  muted?: boolean;
   size?: number;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -25,6 +27,7 @@ export function IconButton({
   accessibilityLabel,
   onPress,
   variant = 'outline',
+  muted = false,
   size = MinTouchTarget,
   disabled = false,
   style,
@@ -62,7 +65,7 @@ export function IconButton({
       ]}>
       <Icon
         size={variant === 'plain' ? 20 : 16}
-        color={variant === 'soft' ? theme.textBody : theme.text}
+        color={muted ? theme.textSecondary : variant === 'soft' ? theme.textBody : theme.text}
         strokeWidth={2}
       />
     </Pressable>

@@ -64,6 +64,10 @@ export function sessionFromPlan(
     nameSnapshot: planLine.nameSnapshot,
     metric: planLine.metric,
     sets: emptySets(planLine.targetSets),
+    // A template's maybes and stand-ins come along; both stay absent on a
+    // plain line so the document does not grow fields it has no use for.
+    ...(planLine.section === 'maybe' ? { section: 'maybe' as const } : {}),
+    ...(planLine.alternates?.length ? { alternates: planLine.alternates } : {}),
   }));
 
   const notes = Object.fromEntries(

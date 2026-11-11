@@ -113,6 +113,27 @@ describe('sessionFromPlan', () => {
     });
   });
 
+  it('brings a template’s maybes and stand-ins along', () => {
+    const alternates = [
+      { exerciseId: 'pec-deck', nameSnapshot: 'Pec deck', metric: 'weight_reps' as const },
+    ];
+    const session = sessionFromPlan(
+      plan({ lines: [planLine({ section: 'maybe', alternates })] }),
+      NOW,
+      idFactory(),
+    );
+
+    expect(session.lines[0]).toMatchObject({ section: 'maybe', alternates });
+  });
+
+  // A plain line must not gain fields the document has no use for.
+  it('adds neither field to a plain planned line', () => {
+    const [line] = sessionFromPlan(plan(), NOW, idFactory()).lines;
+
+    expect('section' in line).toBe(false);
+    expect('alternates' in line).toBe(false);
+  });
+
   it('opens as many empty sets as the plan asks for', () => {
     const session = sessionFromPlan(plan({ lines: [planLine({ targetSets: 4 })] }), NOW, idFactory());
 
