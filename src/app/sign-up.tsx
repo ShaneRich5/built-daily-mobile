@@ -1,19 +1,17 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 
+import { FormField } from '@/components/form-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Button } from '@/components/ui/button';
+import { Screen } from '@/components/ui/screen';
 import { authErrorMessage } from '@/services/auth-errors';
 import { signUp } from '@/services/auth';
 
 const MIN_PASSWORD_LENGTH = 6;
 
 export default function SignUpScreen() {
-  const theme = useTheme();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,119 +37,90 @@ export default function SignUpScreen() {
     }
   }
 
-  const inputStyle = [
-    styles.input,
-    { backgroundColor: theme.backgroundElement, color: theme.text },
-  ];
-
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.form}>
-          <ThemedText type="subtitle">Create account</ThemedText>
+    <Screen edges={['top', 'bottom']} contentStyle={styles.content}>
+      <View style={styles.heading}>
+        <ThemedText type="overline">Built Daily</ThemedText>
+        <ThemedText type="title" accessibilityRole="header">
+          Create account
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          One account for the app and the website.
+        </ThemedText>
+      </View>
 
-          <TextInput
-            style={inputStyle}
-            value={displayName}
-            onChangeText={setDisplayName}
-            placeholder="Name"
-            placeholderTextColor={theme.textSecondary}
-            autoCapitalize="words"
-            autoComplete="name"
-            textContentType="name"
-            editable={!isSubmitting}
-          />
+      <View style={styles.fields}>
+        <FormField
+          label="Name"
+          value={displayName}
+          onChangeText={setDisplayName}
+          autoCapitalize="words"
+          autoComplete="name"
+          textContentType="name"
+          editable={!isSubmitting}
+        />
 
-          <TextInput
-            style={inputStyle}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Email"
-            placeholderTextColor={theme.textSecondary}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            editable={!isSubmitting}
-          />
+        <FormField
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="you@example.com"
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          editable={!isSubmitting}
+        />
 
-          <TextInput
-            style={inputStyle}
-            value={password}
-            onChangeText={setPassword}
-            placeholder={`Password (${MIN_PASSWORD_LENGTH}+ characters)`}
-            placeholderTextColor={theme.textSecondary}
-            autoCapitalize="none"
-            autoComplete="new-password"
-            secureTextEntry
-            textContentType="newPassword"
-            editable={!isSubmitting}
-            onSubmitEditing={handleSubmit}
-          />
+        <FormField
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
+          autoCapitalize="none"
+          autoComplete="new-password"
+          secureTextEntry
+          textContentType="newPassword"
+          editable={!isSubmitting}
+          onSubmitEditing={handleSubmit}
+        />
+      </View>
 
-          {error ? (
-            <ThemedText type="small" themeColor="danger">
-              {error}
-            </ThemedText>
-          ) : null}
+      {error ? (
+        <ThemedText type="small" themeColor="danger">
+          {error}
+        </ThemedText>
+      ) : null}
 
-          <Pressable
-            style={[styles.button, { backgroundColor: theme.tint }, !canSubmit && styles.disabled]}
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            accessibilityRole="button">
-            {isSubmitting ? (
-              <ActivityIndicator color={theme.background} />
-            ) : (
-              <ThemedText type="smallBold" style={{ color: theme.background }}>
-                Create account
-              </ThemedText>
-            )}
-          </Pressable>
+      <Button
+        label="Create account"
+        size="lg"
+        onPress={handleSubmit}
+        disabled={!canSubmit}
+        busy={isSubmitting}
+      />
 
-          <Link href="/sign-in" style={styles.link}>
-            <ThemedText type="link" themeColor="tint">
-              Already have an account? Sign in
-            </ThemedText>
-          </Link>
-        </ThemedView>
-      </SafeAreaView>
-    </ThemedView>
+      <Link href="/sign-in" style={styles.link}>
+        <ThemedText type="link">Already have an account? Sign in</ThemedText>
+      </Link>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
+  content: {
+    flexGrow: 1,
     justifyContent: 'center',
+    padding: 24,
   },
-  form: {
-    gap: Spacing.three,
-    padding: Spacing.four,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
+  heading: {
+    gap: 4,
   },
-  input: {
-    borderRadius: 10,
-    fontSize: 16,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  button: {
-    alignItems: 'center',
-    borderRadius: 10,
-    justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: Spacing.three,
-  },
-  disabled: {
-    opacity: 0.5,
+  fields: {
+    gap: 12,
   },
   link: {
     alignSelf: 'center',
+    paddingVertical: 8,
   },
 });

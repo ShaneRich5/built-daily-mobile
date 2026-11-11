@@ -31,9 +31,9 @@ export function HeaderBackButton({ label = 'Back' }: { label?: string }) {
         name={{ ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }}
         size={16}
         weight="semibold"
-        tintColor={theme.tint}
+        tintColor={theme.text}
       />
-      <ThemedText type="small" themeColor="tint">
+      <ThemedText type="link" themeColor="text">
         {label}
       </ThemedText>
     </Pressable>

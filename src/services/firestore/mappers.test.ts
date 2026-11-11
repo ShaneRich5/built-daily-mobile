@@ -139,6 +139,32 @@ describe('toWorkoutPlan', () => {
 
     expect(plan.updatedAt).toEqual(plan.createdAt);
   });
+
+  // Templates saved while the web app still had rest timers carry these, and a
+  // template re-saved from mobile must not lose them.
+  it('keeps the rest preferences a template was saved with', () => {
+    const plan = toWorkoutPlan('plan-1', {
+      createdAt: timestamp('2026-09-01T00:00:00Z'),
+      restPreferences: { autoRestTimer: true, defaultRestSec: 90 },
+    });
+
+    expect(plan.restPreferences).toEqual({ autoRestTimer: true, defaultRestSec: 90 });
+  });
+
+  it('leaves rest preferences off a template that never had them', () => {
+    const plan = toWorkoutPlan('plan-1', { createdAt: timestamp('2026-09-01T00:00:00Z') });
+
+    expect('restPreferences' in plan).toBe(false);
+  });
+
+  it('ignores rest preferences it cannot make sense of', () => {
+    const plan = toWorkoutPlan('plan-1', {
+      createdAt: timestamp('2026-09-01T00:00:00Z'),
+      restPreferences: { autoRestTimer: 'yes', defaultRestSec: 45 },
+    });
+
+    expect('restPreferences' in plan).toBe(false);
+  });
 });
 
 describe('fromNewSession', () => {
@@ -312,5 +338,49 @@ describe('fromSessionPatch', () => {
     const doc = fromSessionPatch({ lines });
 
     expect(toWorkoutSession('s1', doc).lines).toEqual(lines);
+  });
+
+  describe('the done flag on a set', () => {
+    const webSet = (extra: Record<string, unknown>) => ({
+      status: 'in_progress',
+      lines: [
+        {
+          lineId: 'l1',
+          exerciseId: 'bench',
+          nameSnapshot: 'Bench',
+          metric: 'weight_reps',
+          sets: [{ weight: 135, reps: 8, ...extra }],
+        },
+      ],
+    });
+
+    const roundTrip = (extra: Record<string, unknown>) => {
+      const read = toWorkoutSession('s1', webSet(extra));
+      const written = fromSessionPatch({ lines: read.lines }) as {
+        lines: { sets: Record<string, unknown>[] }[];
+      };
+      return written.lines[0].sets[0];
+    };
+
+    // The regression this guards: mobile used to drop the field, so saving a
+    // workout logged on the web silently un-ticked every set in it.
+    it('survives being read and saved again when a set is ticked', () => {
+      expect(roundTrip({ done: true }).done).toBe(true);
+    });
+
+    it('survives being read and saved again when a set is not ticked', () => {
+      expect(roundTrip({ done: false }).done).toBe(false);
+    });
+
+    // Absent means "infer it from the values"; writing false would change that.
+    it('is not invented for a set that never had it', () => {
+      expect('done' in roundTrip({})).toBe(false);
+    });
+
+    it('is not read from a value that is not a boolean', () => {
+      const read = toWorkoutSession('s1', webSet({ done: 'yes' }));
+
+      expect('done' in read.lines[0].sets[0]).toBe(false);
+    });
   });
 });

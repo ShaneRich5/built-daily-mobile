@@ -1,4 +1,3 @@
-import type { ThemeColor } from '@/constants/theme';
 import type { ExerciseMetric, SessionStatus, SetLog, WorkoutSession } from '@/types/workout';
 
 /**
@@ -63,22 +62,6 @@ export function sessionStatusLabel(status: SessionStatus): string {
       return 'Completed';
     case 'discarded':
       return 'Discarded';
-  }
-}
-
-/**
- * The theme colour a status is shown in: the tint pulls the eye to a workout
- * still waiting to be finished, and a discarded one is called out as the
- * exception it is. A completed session is the norm, so it stays quiet.
- */
-export function sessionStatusColor(status: SessionStatus): ThemeColor {
-  switch (status) {
-    case 'in_progress':
-      return 'tint';
-    case 'completed':
-      return 'textSecondary';
-    case 'discarded':
-      return 'danger';
   }
 }
 

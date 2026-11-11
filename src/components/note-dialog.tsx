@@ -4,7 +4,7 @@ import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ActionButton } from '@/components/action-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type NoteDialogProps = {
@@ -30,11 +30,14 @@ export function NoteDialog({ title, initialValue, onCancel, onSave }: NoteDialog
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
       {/* Tapping the backdrop is the same as cancelling. */}
-      <Pressable style={styles.backdrop} onPress={onCancel} accessibilityLabel="Close">
+      <Pressable
+        style={[styles.backdrop, { backgroundColor: theme.scrim }]}
+        onPress={onCancel}
+        accessibilityLabel="Close">
         {/* Swallows taps so they do not reach the backdrop underneath. */}
         <Pressable style={styles.sheetWrapper} onPress={() => {}}>
-          <ThemedView style={styles.sheet}>
-            <ThemedText type="smallBold">{title}</ThemedText>
+          <ThemedView type="surface" style={styles.sheet}>
+            <ThemedText type="heading">{title}</ThemedText>
 
             <TextInput
               // Not `title`: that is already the control that opened this
@@ -75,7 +78,6 @@ export function NoteDialog({ title, initialValue, onCancel, onSave }: NoteDialog
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     flex: 1,
     justifyContent: 'center',
     padding: Spacing.three,
@@ -91,6 +93,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderRadius: 10,
+    fontFamily: FontFamily.regular,
     fontSize: 16,
     minHeight: 120,
     padding: Spacing.three,

@@ -16,6 +16,14 @@ export type SetLog = {
   resistanceLevel: number | null;
   distanceMiles: number | null;
   note: string | null;
+  /**
+   * Checked off in the active workout. Optional: sets written before the field
+   * existed, and sets written by the MCP server, omit it — read those with
+   * `isSetDone`, which treats a set with values as done. It has to survive a
+   * round trip untouched: dropping it on save would un-tick a workout logged on
+   * the web.
+   */
+  done?: boolean;
 };
 
 /** One exercise within a session, embedded in the session document. */
@@ -74,6 +82,16 @@ export type PlanLine = {
   notes: string | null;
 };
 
+/**
+ * Rest-timer defaults a template can carry. The timers themselves were removed
+ * from both apps, but templates saved before that still hold these, so they are
+ * read and kept rather than dropped when a template is re-saved.
+ */
+export type PlanRestPreferences = {
+  autoRestTimer: boolean;
+  defaultRestSec: 30 | 60 | 90 | 120;
+};
+
 /** `users/{uid}/plans/{planId}` — a reusable workout template. */
 export type WorkoutPlan = {
   id: string;
@@ -82,4 +100,6 @@ export type WorkoutPlan = {
   createdAt: Date;
   updatedAt: Date;
   lines: PlanLine[];
+  /** Absent on templates that never had the setting. */
+  restPreferences?: PlanRestPreferences;
 };

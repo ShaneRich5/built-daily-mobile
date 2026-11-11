@@ -3,7 +3,6 @@ import {
   formatSet,
   sessionDayLabel,
   sessionDurationLabel,
-  sessionStatusColor,
   sessionStatusLabel,
   sessionVolumeLabel,
 } from '@/lib/session-format';
@@ -148,19 +147,5 @@ describe('sessionStatusLabel', () => {
     expect(sessionStatusLabel('in_progress')).toBe('In progress');
     expect(sessionStatusLabel('completed')).toBe('Completed');
     expect(sessionStatusLabel('discarded')).toBe('Discarded');
-  });
-});
-
-describe('sessionStatusColor', () => {
-  it('pulls the eye to a workout still waiting to be finished', () => {
-    expect(sessionStatusColor('in_progress')).toBe('tint');
-  });
-
-  it('keeps a completed workout quiet, since that is the norm', () => {
-    expect(sessionStatusColor('completed')).toBe('textSecondary');
-  });
-
-  it('calls out a discarded workout', () => {
-    expect(sessionStatusColor('discarded')).toBe('danger');
   });
 });

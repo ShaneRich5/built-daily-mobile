@@ -35,6 +35,19 @@ export function isLoggedSet(set: SetLog): boolean {
   );
 }
 
+/**
+ * Whether a set is checked off.
+ *
+ * `done` was added to the document late. A set without it — logged before the
+ * field existed, or written by the MCP server — counts as done when it recorded
+ * something, which is how the web app reads the same documents
+ * (`isSetLogDone`). An explicit `false` is respected: that is a set with
+ * numbers typed in but not yet ticked.
+ */
+export function isSetDone(set: SetLog): boolean {
+  return set.done ?? isLoggedSet(set);
+}
+
 /** When a workout happened, for ranking one against another. */
 function performedAt(session: WorkoutSession): Date {
   return session.endedAt ?? session.startedAt;
@@ -87,5 +100,16 @@ export function lastPerformanceByExercise(
  * delete. The same reasoning as `nextDraftSet` in `session-edit`.
  */
 export function startingSetsFrom(performance: ExercisePerformance): SetLog[] {
-  return performance.sets.map((set) => ({ ...set, note: null }));
+  return performance.sets.map(asFreshSet);
+}
+
+/**
+ * A copy of a set to do again: the numbers, without what was particular to the
+ * time it was done — its note, and the tick that says it is finished. Leaving
+ * `done` on would open a new workout with every set already checked off.
+ */
+export function asFreshSet(set: SetLog): SetLog {
+  const fresh: SetLog = { ...set, note: null };
+  delete fresh.done;
+  return fresh;
 }
