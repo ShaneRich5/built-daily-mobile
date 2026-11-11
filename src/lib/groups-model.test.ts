@@ -4,6 +4,7 @@ import {
   buildGroupWeek,
   buildInvitePreview,
   buildMemberWeek,
+  buildTogetherToday,
   buildWeekDays,
   doneThisWeek,
   firstName,
@@ -20,7 +21,7 @@ import {
 } from '@/lib/groups-model';
 import { effectiveStreak, memberSignals, upcomingPlansFromEntries } from '@/lib/workout-signals';
 import { session } from '@/lib/session/session-test-helpers';
-import type { Group, GroupMember } from '@/types/group';
+import type { Group, GroupMember, SharedPlan } from '@/types/group';
 
 // Wednesday. The week runs Sun Nov 8 – Sat Nov 14.
 const TODAY = '2026-11-11';
@@ -266,5 +267,43 @@ describe('member signals', () => {
     expect(effectiveStreak({ currentStreak: 4, lastWorkoutDateKey: '2026-11-03' }, TODAY)).toBe(4);
     expect(effectiveStreak({ currentStreak: 4, lastWorkoutDateKey: '2026-10-31' }, TODAY)).toBe(0);
     expect(effectiveStreak({ currentStreak: 4, lastWorkoutDateKey: null }, TODAY)).toBe(0);
+  });
+});
+
+describe('training with someone today', () => {
+  const plan: SharedPlan = {
+    id: 'legs',
+    groupId: 'g1',
+    dateKey: TODAY,
+    time: '06:30',
+    where: 'Iron Works',
+    label: 'Leg day',
+    exercises: [],
+    note: null,
+    createdBy: 'maya',
+    createdByName: 'Maya Chen',
+    going: ['maya', 'me'],
+    goingAt: {},
+    createdAt: new Date(2026, 10, 10),
+  };
+
+  it('says when, where and who, with you last', () => {
+    expect(buildTogetherToday(plan, [me, maya], 'me')).toEqual({
+      label: 'Leg day',
+      meta: '6:30 AM · Iron Works',
+      going: 'Maya and you are going',
+    });
+  });
+
+  it('reads as anytime without a time, and names someone it can’t find', () => {
+    expect(buildTogetherToday({ ...plan, time: null, where: null, going: ['jo'] }, [me], 'me')).toEqual({
+      label: 'Leg day',
+      meta: 'Anytime',
+      going: 'Someone is going',
+    });
+  });
+
+  it('says nothing about who when no one is going', () => {
+    expect(buildTogetherToday({ ...plan, going: [] }, [me, maya], 'me').going).toBe('');
   });
 });

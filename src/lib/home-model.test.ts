@@ -10,6 +10,7 @@ import {
   pickMissed,
   pickNextPlanned,
   pickSuggestedStart,
+  pickTogetherToday,
   plannedWhen,
   startCopy,
   weekNudge,
@@ -467,5 +468,34 @@ describe('missed plans', () => {
   it('says when it slid past', () => {
     expect(missedHeadline(entry('e', '2026-11-10'), TODAY)).toBe('Leg day slid past yesterday');
     expect(missedHeadline(entry('e', '2026-11-09'), TODAY)).toBe('Leg day slid past on Mon');
+  });
+});
+
+describe('pickTogetherToday', () => {
+  const together = { sharedPlanId: 'legs', groupId: 'crew' };
+
+  it('finds today’s open entry that came from a plan together', () => {
+    const picked = pickTogetherToday(
+      [entry('solo', TODAY), entry('shared', TODAY, together), entry('later', '2026-11-12', together)],
+      TODAY,
+    );
+    expect(picked).toMatchObject({ id: 'shared', sharedPlanId: 'legs', groupId: 'crew' });
+  });
+
+  it('skips one already done or skipped, and one on another day', () => {
+    expect(
+      pickTogetherToday(
+        [
+          entry('done', TODAY, { ...together, status: 'completed', sessionId: 's1' }),
+          entry('skipped', TODAY, { ...together, status: 'skipped' }),
+          entry('tomorrow', '2026-11-12', together),
+        ],
+        TODAY,
+      ),
+    ).toBeNull();
+  });
+
+  it('needs both the plan and its group', () => {
+    expect(pickTogetherToday([entry('a', TODAY, { sharedPlanId: 'legs' })], TODAY)).toBeNull();
   });
 });

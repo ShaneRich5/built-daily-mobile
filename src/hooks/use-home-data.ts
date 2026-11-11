@@ -10,6 +10,7 @@ import {
   buildWeekGoal,
   pickInProgress,
   pickMissed,
+  pickTogetherToday,
   pickNextPlanned,
 } from '@/lib/home-model';
 import { describeReadError } from '@/lib/read-error';
@@ -134,6 +135,8 @@ export function useHomeData() {
     weekGoal: buildWeekGoal(sessions, weeklyGoal, todayKey),
     consistency: buildHomeConsistency(todayKey, sessions, activities, entries, weeklyGoal),
     missed: pickMissed(entries, sessions, todayKey),
+    // A plan together on today's planner, for the "Training with someone today" card.
+    together: pickTogetherToday(entries, todayKey),
   };
 }
 

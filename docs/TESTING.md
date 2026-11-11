@@ -93,6 +93,8 @@ one rather than assuming the app is broken.
   planner either way. On the day, Start turns it into a workout.
 - **Coming up together** on the Groups tab: every group's plans for the next
   seven days.
+- **Training with someone today**: on a day you're going to a plan together,
+  Home leads with it. Tap it for the plan, or Start.
 - **The exercise catalog** (in the account menu).
 
 ## 4. What's still website-only
