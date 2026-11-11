@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useSession } from '@/contexts/session';
-import { dateKey } from '@/lib/date-keys';
+import { addDays, dateKey } from '@/lib/date-keys';
 import { describeReadError } from '@/lib/read-error';
 import {
   subscribeToCheers,
@@ -9,11 +9,27 @@ import {
   subscribeToMembers,
   subscribeToMemberships,
 } from '@/services/firestore/group-repository';
+import { subscribeToGroupPlans } from '@/services/firestore/group-plan-repository';
+import { subscribeToPlans } from '@/services/firestore/workout-repository';
 import { syncGroups } from '@/services/group-sync';
-import type { Cheer, Group, GroupMember, GroupMembership } from '@/types/group';
+import type { Cheer, Group, GroupMember, GroupMembership, SharedPlan } from '@/types/group';
+import type { WorkoutPlan } from '@/types/workout';
 
 /** One group as the Groups tab holds it. `group` is undefined until read, null if gone. */
-export type GroupSnapshot = { group: Group | null | undefined; members: GroupMember[] };
+export type GroupSnapshot = { group: Group | null | undefined; members: GroupMember[]; plans: SharedPlan[] };
+
+/** Plans together look a week ahead: today and the six days after. */
+export const PLAN_WINDOW_DAYS = 7;
+
+/** The lifter's templates, for the plan sheet's workout chips. */
+function useTemplates(uid: string | undefined): WorkoutPlan[] {
+  const [loaded, setLoaded] = useState<{ uid: string; plans: WorkoutPlan[] } | null>(null);
+  useEffect(() => {
+    if (!uid) return;
+    return subscribeToPlans(uid, { onData: (plans) => setLoaded({ uid, plans }), onError: quiet });
+  }, [uid]);
+  return loaded && loaded.uid === uid ? loaded.plans : [];
+}
 
 const quiet = () => {};
 
@@ -51,15 +67,17 @@ export function useGroupsHome() {
     const patch = (id: string, next: Partial<GroupSnapshot>) =>
       setByGroup((current) => ({
         ...current,
-        [id]: { ...(current[id] ?? { group: undefined, members: [] }), ...next },
+        [id]: { ...(current[id] ?? { group: undefined, members: [], plans: [] }), ...next },
       }));
 
+    const end = addDays(todayKey, PLAN_WINDOW_DAYS - 1);
     const unsubscribes = ids.split(',').flatMap((id) => [
       subscribeToGroup(id, { onData: (group) => patch(id, { group }), onError: () => patch(id, { group: null }) }),
       subscribeToMembers(id, { onData: (members) => patch(id, { members }), onError: quiet }),
+      subscribeToGroupPlans(id, todayKey, end, { onData: (plans) => patch(id, { plans }), onError: quiet }),
     ]);
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
-  }, [ids]);
+  }, [ids, todayKey]);
 
   const firstId = ids.split(',')[0] ?? '';
   useEffect(() => {
@@ -70,6 +88,8 @@ export function useGroupsHome() {
     });
   }, [firstId, todayKey]);
 
+  const templates = useTemplates(uid);
+
   return {
     todayKey,
     myUid: uid ?? null,
@@ -77,6 +97,7 @@ export function useGroupsHome() {
     error: loaded && loaded.uid === uid ? loaded.error : null,
     byGroup,
     firstGroupCheers: cheers && cheers.groupId === firstId ? cheers.cheers : [],
+    templates,
   };
 }
 
@@ -90,7 +111,8 @@ export function useGroup(groupId: string) {
     group: Group | null | undefined;
     members: GroupMember[];
     cheers: Cheer[];
-    membership: GroupMembership | null;
+    plans: SharedPlan[];
+    memberships: GroupMembership[];
   } | null>(null);
 
   const key = `${uid}/${groupId}`;
@@ -100,7 +122,9 @@ export function useGroup(groupId: string) {
 
     const patch = (next: Partial<NonNullable<typeof state>>) =>
       setState((current) => ({
-        ...(current?.key === key ? current : { key, group: undefined, members: [], cheers: [], membership: null }),
+        ...(current?.key === key
+          ? current
+          : { key, group: undefined, members: [], cheers: [], plans: [], memberships: [] }),
         ...next,
       }));
 
@@ -108,15 +132,18 @@ export function useGroup(groupId: string) {
       subscribeToGroup(groupId, { onData: (group) => patch({ group }), onError: () => patch({ group: null }) }),
       subscribeToMembers(groupId, { onData: (members) => patch({ members }), onError: quiet }),
       subscribeToCheers(groupId, todayKey, { onData: (cheers) => patch({ cheers }), onError: quiet }),
-      subscribeToMemberships(uid, {
-        onData: (rows) => patch({ membership: rows.find((row) => row.groupId === groupId) ?? null }),
+      subscribeToGroupPlans(groupId, todayKey, addDays(todayKey, PLAN_WINDOW_DAYS - 1), {
+        onData: (plans) => patch({ plans }),
         onError: quiet,
       }),
+      subscribeToMemberships(uid, { onData: (memberships) => patch({ memberships }), onError: quiet }),
     ];
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [uid, groupId, todayKey, key]);
 
   const current = state?.key === key ? state : null;
+  const templates = useTemplates(uid);
+  const memberships = current?.memberships ?? [];
 
   return {
     todayKey,
@@ -124,6 +151,10 @@ export function useGroup(groupId: string) {
     group: current?.group,
     members: current?.members ?? [],
     cheers: current?.cheers ?? [],
-    buddyNickname: current?.membership?.buddyNickname ?? null,
+    plans: current?.plans ?? [],
+    /** Every group the lifter is in, for the plan sheet's "Share with". */
+    memberships,
+    buddyNickname: memberships.find((row) => row.groupId === groupId)?.buddyNickname ?? null,
+    templates,
   };
 }

@@ -108,3 +108,39 @@ export type Cheer = {
   dateKey: string;
   createdAt: Date;
 };
+
+export const SHARED_PLAN_LIMITS = {
+  label: 80,
+  where: 80,
+  note: 140,
+  exercises: 20,
+  going: 12,
+} as const;
+
+/** An exercise in a plan together: what to do, never how much. */
+export type SharedPlanExercise = {
+  id: string;
+  name: string;
+  /** The template's target set count, or null. */
+  sets: number | null;
+};
+
+/** `groups/{groupId}/plans/{planId}`: a plan together anyone in the group can join. */
+export type SharedPlan = {
+  id: string;
+  groupId: string;
+  dateKey: string;
+  /** Local `HH:mm`, or null for "anytime". */
+  time: string | null;
+  where: string | null;
+  label: string;
+  /** Names and set counts only; empty for "something else". */
+  exercises: SharedPlanExercise[];
+  note: string | null;
+  createdBy: string;
+  createdByName: string;
+  /** Who said "I'm in"; the creator starts in it. */
+  going: string[];
+  goingAt: Record<string, Date>;
+  createdAt: Date;
+};

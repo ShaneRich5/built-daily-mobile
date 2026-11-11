@@ -49,8 +49,8 @@ export function CardPanel({
   const busyDays = new Set(open.filter((entry) => entry.id !== card.id).map((entry) => entry.dateKey));
   const pushBack = pushBackPlan(card, open, todayKey);
   const canStart = card.entry.exerciseIds.length > 0;
-  // Leaving a group's plan also takes you off its going list; that is Groups' job.
-  const canDelete = !card.entry.sharedPlanId;
+  // A group's plan together: deleting it here also takes you off its going list.
+  const shared = Boolean(card.entry.sharedPlanId);
 
   return (
     <SheetFrame
@@ -137,20 +137,14 @@ export function CardPanel({
               onPress={onSkip}
             />
           ) : null}
-          {canDelete ? (
-            <ActionRow
-              label="Delete"
-              detail="Remove it from the planner"
-              icon={Trash2Icon}
-              destructive
-              disabled={busy}
-              onPress={onDelete}
-            />
-          ) : (
-            <ThemedText type="caption" themeColor="textMuted" style={styles.note}>
-              This is a group plan. Leave it from the website for now.
-            </ThemedText>
-          )}
+          <ActionRow
+            label={shared ? 'Can’t make it' : 'Delete'}
+            detail={shared ? 'Off your planner, and off the group’s going list' : 'Remove it from the planner'}
+            icon={Trash2Icon}
+            destructive
+            disabled={busy}
+            onPress={onDelete}
+          />
         </View>
       </ScrollView>
     </SheetFrame>
@@ -198,10 +192,6 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-  },
-  note: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
   },
   pressed: {
     opacity: 0.7,

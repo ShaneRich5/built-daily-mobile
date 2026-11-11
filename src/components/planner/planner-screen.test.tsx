@@ -266,13 +266,14 @@ describe('PlannerScreen', () => {
       expect(mockedDelete).toHaveBeenCalledWith('user-1', expect.objectContaining({ id: 'Leg day' }));
     });
 
-    // Leaving a group plan also updates its going list, which waits for Groups.
-    it('does not offer to delete a group plan', async () => {
+    // Leaving a plan together also takes you off its going list (in the repository).
+    it('offers "Can’t make it" for a group plan', async () => {
       dated = [entry('Leg day', '2026-11-12', { sharedPlanId: 'shared', groupId: 'g' }) as DatedScheduledWorkout];
       await open();
 
       expect(screen.queryByRole('button', { name: /^Delete/ })).toBeNull();
-      expect(screen.getByText(/Leave it from the website/)).toBeTruthy();
+      await user().press(screen.getByRole('button', { name: /^Can’t make it/ }));
+      expect(mockedDelete).toHaveBeenCalledWith('user-1', expect.objectContaining({ sharedPlanId: 'shared' }));
     });
   });
 

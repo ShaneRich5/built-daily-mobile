@@ -86,6 +86,11 @@ one rather than assuming the app is broken.
 - **Your row in your groups stays current**: finishing, editing or deleting a
   workout, logging an activity, changing your goal or your plans updates what
   your groups see, a moment later.
+- **Plans together**: plan a workout with a group (a day, maybe a time and
+  place), say "I'm in" to someone else's, or "Can't make it". It goes on your
+  planner either way. On the day, Start turns it into a workout.
+- **Coming up together** on the Groups tab: every group's plans for the next
+  seven days.
 - **The exercise catalog** (in the account menu).
 
 ## 4. What's still website-only
@@ -95,8 +100,6 @@ Not bugs — these simply haven't been built on mobile yet:
 - Opening, editing or deleting an activity you logged.
 - The old Progress layout's year heatmap, and a list of past weigh-ins
   (only the latest and the trend show here).
-- Plans together: planning a workout with a group, "I'm in", and the plan
-  page. Plans made together on the website don't show here yet.
 - Opening an invite link straight into the app. Links open the website; type
   the code into Groups › Join instead.
 - Public profiles.

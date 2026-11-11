@@ -4,7 +4,8 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { failureMessage, InvitePanel } from '@/components/groups/group-panels';
-import { Avatar, PrivacyNote } from '@/components/groups/group-ui';
+import { Avatar, DayTile, PrivacyNote } from '@/components/groups/group-ui';
+import { PlanRowItem, PlanTogetherPanel } from '@/components/groups/plan-ui';
 import { WeekGrid, WeekLegend } from '@/components/groups/week-grid';
 import { type MenuAction, MenuPanel } from '@/components/session/panels/list-panels';
 import { ThemedText } from '@/components/themed-text';
@@ -14,6 +15,7 @@ import { Card } from '@/components/ui/card';
 import { IconButton } from '@/components/ui/icon-button';
 import { ArrowLeftIcon, EllipsisIcon, HeartIcon, LogOutIcon, Trash2Icon, UserPlusIcon } from '@/components/ui/icons';
 import { Pill } from '@/components/ui/pill';
+import { SectionLabel } from '@/components/ui/section-label';
 import { SheetFrame, SheetHost } from '@/components/ui/sheet';
 import { MaxContentWidth, Radius } from '@/constants/theme';
 import { useSession } from '@/contexts/session';
@@ -22,17 +24,23 @@ import { useTheme } from '@/hooks/use-theme';
 import {
   buddiesSinceLabel,
   buildBuddySummary,
+  buildGroupPlanRow,
   buildGroupWeek,
+  crewCountsByDay,
   buildWeekDays,
   groupDisplayName,
   joinNames,
   nextPlannedLabel,
+  nextSevenDays,
+  type PlanRow,
+  planTemplateOptions,
   pluralMembers,
   trainedTodayDetail,
   trainedTodayOthers,
   weekRangeLabel,
 } from '@/lib/groups-model';
 import { confirm } from '@/services/confirm';
+import { createSharedPlan, joinSharedPlan } from '@/services/firestore/group-plan-repository';
 import {
   cheer,
   convertBuddyToGroup,
@@ -42,7 +50,7 @@ import {
   resetInviteCode,
 } from '@/services/firestore/group-repository';
 
-type Panel = 'menu' | 'invite' | 'convert' | null;
+type Panel = 'menu' | 'invite' | 'convert' | 'plan' | null;
 
 /**
  * G2 (a group) and G8 (a buddy): the shared week, who trained today with a
@@ -56,6 +64,7 @@ export function GroupScreen({ groupId, openInvite = false }: { groupId: string; 
   const { group, members, todayKey, myUid } = data;
   const [panel, setPanel] = useState<Panel>(null);
   const [cheering, setCheering] = useState(false);
+  const [joiningPlanId, setJoiningPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Straight from "Create & get invite link": the invite opens once the group has loaded.
@@ -69,7 +78,7 @@ export function GroupScreen({ groupId, openInvite = false }: { groupId: string; 
 
   // The link's signed-out preview is refreshed whenever the invite opens.
   useEffect(() => {
-    if (panel === 'invite' && user && group) void refreshInvitePreview(user, group, members);
+    if (panel === 'invite' && user && group) void refreshInvitePreview(user, group, members, data.plans);
     // Members are read when it opens on purpose: a refresh per roster change would be noise.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel, user, group?.id, group?.inviteCode]);
@@ -183,6 +192,82 @@ export function GroupScreen({ groupId, openInvite = false }: { groupId: string; 
     ) : null;
 
   const buddy = isBuddy ? buildBuddySummary(members, week, todayKey) : null;
+  const planRows = data.plans.map((plan) => buildGroupPlanRow(plan, members, myUid));
+  const nextTogether = planRows[0] ?? null;
+
+  const openPlan = (row: PlanRow) =>
+    router.push({ pathname: '/groups/[groupId]/plans/[planId]', params: { groupId: group.id, planId: row.id } });
+
+  const imIn = async (row: PlanRow) => {
+    if (!user) return;
+    setJoiningPlanId(row.id);
+    setError(null);
+    try {
+      await joinSharedPlan(user, group.id, row.id);
+    } catch (failure) {
+      setError(failureMessage(failure, 'Couldn’t add you to that plan. Check your connection and try again.'));
+    } finally {
+      setJoiningPlanId(null);
+    }
+  };
+
+  const plansSection = buddy ? (
+    <View style={styles.section}>
+      <SectionLabel>Next together</SectionLabel>
+      {nextTogether ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${nextTogether.title}. ${nextTogether.meta}`}
+          onPress={() => openPlan(nextTogether)}
+          style={({ pressed }) => [styles.next, { backgroundColor: theme.surface, borderColor: theme.tint }, pressed && styles.pressed]}>
+          <DayTile weekday={nextTogether.weekday} day={nextTogether.dayOfMonth} tone="green" />
+          <View style={styles.flex}>
+            <ThemedText type="labelStrong" numberOfLines={1}>
+              {nextTogether.title}
+            </ThemedText>
+            <ThemedText type="caption" numberOfLines={1}>
+              {nextTogether.meta}
+            </ThemedText>
+          </View>
+        </Pressable>
+      ) : (
+        <Card>
+          <ThemedText type="small" themeColor="textMuted">
+            Nothing planned together yet.
+          </ThemedText>
+        </Card>
+      )}
+      <Button label="Plan a session" variant="dark" onPress={() => setPanel('plan')} />
+    </View>
+  ) : (
+    <View style={styles.section}>
+      <View style={styles.labelRow}>
+        <SectionLabel>Plans together</SectionLabel>
+        <ThemedText type="caption">Join any, no pressure</ThemedText>
+      </View>
+      {planRows.length > 0 ? (
+        <Card padded={false}>
+          {planRows.map((row, i) => (
+            <PlanRowItem
+              key={row.id}
+              row={row}
+              divider={i > 0}
+              busy={joiningPlanId === row.id}
+              onOpen={() => openPlan(row)}
+              onImIn={() => void imIn(row)}
+            />
+          ))}
+        </Card>
+      ) : (
+        <Card>
+          <ThemedText type="small" themeColor="textMuted">
+            No plans this week yet. Pick a day and the group can join you.
+          </ThemedText>
+        </Card>
+      )}
+      <Button label="Plan a workout with the group" variant="dark" onPress={() => setPanel('plan')} />
+    </View>
+  );
 
   return (
     <SafeAreaView edges={['top']} style={[styles.root, { backgroundColor: theme.background }]}>
@@ -277,6 +362,8 @@ export function GroupScreen({ groupId, openInvite = false }: { groupId: string; 
 
         {cheerCard}
 
+        {plansSection}
+
         {buddy ? (
           <ThemedText type="caption" style={styles.centerText}>
             A buddy is a group of two. Want more people?{' '}
@@ -290,8 +377,38 @@ export function GroupScreen({ groupId, openInvite = false }: { groupId: string; 
         <PrivacyNote />
       </ScrollView>
 
-      <SheetHost visible={panel !== null} onClose={() => setPanel(null)}>
-        {panel === 'menu' ? (
+      <SheetHost visible={panel !== null} onClose={() => setPanel(null)} size={panel === 'plan' ? 'tall' : 'content'}>
+        {panel === 'plan' ? (
+          <PlanTogetherPanel
+            todayKey={todayKey}
+            templates={planTemplateOptions(data.templates)}
+            groups={data.memberships.map((membership) => ({
+              id: membership.groupId,
+              name:
+                membership.groupId === group.id
+                  ? title
+                  : membership.buddyNickname
+                    ? `You & ${membership.buddyNickname}`
+                    : membership.nameSnapshot,
+            }))}
+            defaultGroupId={group.id}
+            crewCounts={crewCountsByDay(members, nextSevenDays(todayKey), myUid)}
+            onSubmit={async (input) => {
+              if (!user) return 'You are not signed in.';
+              try {
+                const created = await createSharedPlan(user, input);
+                setPanel(null);
+                router.push({
+                  pathname: '/groups/[groupId]/plans/[planId]',
+                  params: { groupId: created.groupId, planId: created.planId },
+                });
+                return null;
+              } catch (failure) {
+                return failureMessage(failure, 'Couldn’t save the plan. Check your connection and try again.');
+              }
+            }}
+          />
+        ) : panel === 'menu' ? (
           <MenuPanel title={title} actions={menu} />
         ) : panel === 'invite' ? (
           <InvitePanel
@@ -459,6 +576,22 @@ const styles = StyleSheet.create({
   },
   centerText: {
     textAlign: 'center',
+  },
+  section: {
+    gap: 8,
+  },
+  labelRow: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  next: {
+    alignItems: 'center',
+    borderRadius: Radius.xl,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 14,
   },
   centerSelf: {
     alignSelf: 'center',

@@ -18,7 +18,9 @@ const MAX_NOTE_LENGTH = 400;
 /** The Firestore rules cap a template at 40 lines and require at least one. */
 export const MAX_TEMPLATE_LINES = 40;
 
-export type NewScheduledWorkout = Pick<ScheduledWorkout, 'dateKey' | 'label' | 'planId' | 'exerciseIds'>;
+export type NewScheduledWorkout = Pick<ScheduledWorkout, 'dateKey' | 'label' | 'planId' | 'exerciseIds'> &
+  /** Set when saying "I'm in" to a group's plan together. */
+  Partial<Pick<ScheduledWorkout, 'sharedPlanId' | 'groupId'>>;
 
 /**
  * A planner entry to create → document data, or null when it could not be
@@ -41,6 +43,9 @@ export function fromNewScheduledWorkout(entry: NewScheduledWorkout, now: Date): 
     status: 'planned',
     sessionId: null,
     createdAt: now,
+    ...(entry.sharedPlanId && entry.groupId
+      ? { sharedPlanId: entry.sharedPlanId.slice(0, MAX_ID_LENGTH), groupId: entry.groupId.slice(0, MAX_ID_LENGTH) }
+      : {}),
   };
 }
 

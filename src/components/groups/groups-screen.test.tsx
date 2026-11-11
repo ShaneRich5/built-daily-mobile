@@ -3,8 +3,18 @@ import { router } from 'expo-router';
 
 import { GroupScreen } from '@/components/groups/group-screen';
 import { GroupsScreen } from '@/components/groups/groups-screen';
+import { PlanScreen } from '@/components/groups/plan-screen';
 import { useSession } from '@/contexts/session';
 import { confirm } from '@/services/confirm';
+import {
+  cancelSharedPlan,
+  createSharedPlan,
+  joinSharedPlan,
+  leaveSharedPlan,
+  startableExerciseIds,
+  subscribeToGroupPlans,
+  subscribeToSharedPlan,
+} from '@/services/firestore/group-plan-repository';
 import {
   cheer,
   createGroup,
@@ -17,12 +27,15 @@ import {
   subscribeToMembers,
   subscribeToMemberships,
 } from '@/services/firestore/group-repository';
+import { createSession, subscribeToPlans } from '@/services/firestore/workout-repository';
 import { syncGroups } from '@/services/group-sync';
-import type { Cheer, Group, GroupMember, GroupMembership } from '@/types/group';
+import type { Cheer, Group, GroupMember, GroupMembership, SharedPlan } from '@/types/group';
 
 jest.mock('@/contexts/session');
 jest.mock('@/services/confirm');
 jest.mock('@/services/firestore/group-repository');
+jest.mock('@/services/firestore/group-plan-repository');
+jest.mock('@/services/firestore/workout-repository');
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
 }));
@@ -69,6 +82,27 @@ let memberships: GroupMembership[];
 let groups: Record<string, Group | null>;
 let members: Record<string, GroupMember[]>;
 let cheers: Cheer[];
+let plans: SharedPlan[];
+
+const legDay = (overrides: Partial<SharedPlan> = {}): SharedPlan => ({
+  id: 'legs',
+  groupId: 'crew',
+  dateKey: '2026-11-12',
+  time: '06:30',
+  where: 'Iron Works',
+  label: 'Leg day',
+  exercises: [
+    { id: 'squat', name: 'Back squat', sets: 4 },
+    { id: 'custom-sled', name: 'Sled push', sets: null },
+  ],
+  note: 'Meet by the racks',
+  createdBy: 'maya',
+  createdByName: 'Maya Chen',
+  going: ['maya'],
+  goingAt: { maya: new Date(2026, 10, 10, 8) },
+  createdAt: new Date(2026, 10, 10, 8),
+  ...overrides,
+});
 
 const membership = (groupId: string, name: string, buddyNickname: string | null = null): GroupMembership => ({
   groupId,
@@ -84,6 +118,7 @@ beforeEach(() => {
   groups = {};
   members = {};
   cheers = [];
+  plans = [];
 
   jest.mocked(useSession).mockReturnValue({ user: ME as never, isLoading: false });
   jest.mocked(confirm).mockResolvedValue(true);
@@ -103,6 +138,25 @@ beforeEach(() => {
     onData(cheers);
     return jest.fn();
   });
+  jest.mocked(subscribeToGroupPlans).mockImplementation((_id, _start, _end, { onData }) => {
+    onData(plans);
+    return jest.fn();
+  });
+  jest.mocked(subscribeToSharedPlan).mockImplementation((_g, id, { onData }) => {
+    onData(plans.find((plan) => plan.id === id) ?? null);
+    return jest.fn();
+  });
+  jest.mocked(subscribeToPlans).mockImplementation((_uid, { onData }) => {
+    onData([]);
+    return jest.fn();
+  });
+  jest.mocked(startableExerciseIds).mockImplementation((exercises) =>
+    exercises.map((exercise) => exercise.id).filter((id) => !id.startsWith('custom-')),
+  );
+  jest.mocked(joinSharedPlan).mockResolvedValue(undefined);
+  jest.mocked(leaveSharedPlan).mockResolvedValue(undefined);
+  jest.mocked(cancelSharedPlan).mockResolvedValue(undefined);
+  jest.mocked(createSession).mockResolvedValue('new-session');
   jest.mocked(cheer).mockResolvedValue(undefined);
   jest.mocked(refreshInvitePreview).mockResolvedValue(undefined);
 });
@@ -226,7 +280,7 @@ describe('a group', () => {
 
     expect(screen.getByText('K7Q2 MDXA')).toBeTruthy();
     expect(screen.getByText('2 of 12 spots taken')).toBeTruthy();
-    expect(refreshInvitePreview).toHaveBeenCalledWith(ME, crew, [me, maya]);
+    expect(refreshInvitePreview).toHaveBeenCalledWith(ME, crew, [me, maya], []);
   });
 
   it('keeps an owner from leaving while others are in it', async () => {
@@ -295,5 +349,122 @@ describe('a buddy', () => {
 
     expect(screen.getByRole('header', { name: 'You & Maya' })).toBeTruthy();
     expect(screen.getByText('Gym buddies since Oct 3')).toBeTruthy();
+  });
+});
+
+describe('plans together', () => {
+  beforeEach(() => {
+    memberships = [membership('crew', 'Morning Crew')];
+    groups = { crew };
+    members = { crew: [me, maya] };
+    plans = [legDay()];
+  });
+
+  it('lists what is coming up and joins one with a tap', async () => {
+    await render(<GroupsScreen />);
+
+    expect(screen.getByText('Leg day · Maya')).toBeTruthy();
+    expect(screen.getByText('Morning Crew · 6:30 AM')).toBeTruthy();
+
+    await user().press(screen.getByRole('button', { name: 'Join Maya for Leg day Thursday' }));
+    expect(joinSharedPlan).toHaveBeenCalledWith(ME, 'crew', 'legs');
+  });
+
+  it('shows Going for a plan the lifter is in', async () => {
+    plans = [legDay({ going: ['maya', 'me'] })];
+    await render(<GroupsScreen />);
+
+    expect(screen.getByText('Leg day · Maya, you')).toBeTruthy();
+    expect(screen.getByText('Going')).toBeTruthy();
+  });
+
+  it('lists a group’s plans and opens one', async () => {
+    await render(<GroupScreen groupId="crew" />);
+
+    expect(screen.getByText('Thu · Leg day with Maya')).toBeTruthy();
+    expect(screen.getByText('6:30 AM · Maya so far')).toBeTruthy();
+
+    await user().press(screen.getByRole('button', { name: /^Thu 12: Thu · Leg day with Maya/ }));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/groups/[groupId]/plans/[planId]',
+      params: { groupId: 'crew', planId: 'legs' },
+    });
+  });
+
+  it('plans a workout with the group', async () => {
+    jest.mocked(createSharedPlan).mockResolvedValue({ groupId: 'crew', planId: 'new' });
+    await render(<GroupScreen groupId="crew" />);
+
+    await user().press(screen.getByRole('button', { name: 'Plan a workout with the group' }));
+    await user().press(screen.getByRole('radio', { name: 'Upper body' }));
+    await user().press(screen.getByRole('radio', { name: 'Fri 13' }));
+    await user().press(screen.getByRole('radio', { name: 'Evening' }));
+    await user().type(screen.getByLabelText('Where (optional)'), 'Iron Works');
+    await user().press(screen.getByRole('button', { name: 'Plan Upper body · Fri' }));
+
+    expect(createSharedPlan).toHaveBeenCalledWith(
+      ME,
+      expect.objectContaining({
+        groupIds: ['crew'],
+        dateKey: '2026-11-13',
+        time: '18:00',
+        where: 'Iron Works',
+        note: null,
+        label: 'Upper body',
+      }),
+    );
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/groups/[groupId]/plans/[planId]',
+      params: { groupId: 'crew', planId: 'new' },
+    });
+  });
+
+  it('shows a plan: who is going, who has not said, and the workout', async () => {
+    await render(<PlanScreen groupId="crew" planId="legs" />);
+
+    expect(screen.getByRole('header', { name: 'Leg day' })).toBeTruthy();
+    expect(screen.getByText('6:30 AM · Iron Works')).toBeTruthy();
+    expect(screen.getByText('Planned by Maya')).toBeTruthy();
+    expect(screen.getByText('Planned it')).toBeTruthy();
+    expect(screen.getByText('Back squat')).toBeTruthy();
+    expect(screen.getByText('4 sets')).toBeTruthy();
+
+    await user().press(screen.getByRole('button', { name: 'I’m in' }));
+    expect(joinSharedPlan).toHaveBeenCalledWith(ME, 'crew', 'legs');
+  });
+
+  it('lets someone going back out', async () => {
+    plans = [legDay({ going: ['maya', 'me'], goingAt: { maya: new Date(2026, 10, 10), me: new Date(2026, 10, 11, 8) } })];
+    await render(<PlanScreen groupId="crew" planId="legs" />);
+
+    expect(screen.getByText('Said I’m in today')).toBeTruthy();
+    await user().press(screen.getByRole('button', { name: 'Can’t make it' }));
+    expect(leaveSharedPlan).toHaveBeenCalledWith(ME, 'crew', 'legs');
+  });
+
+  it('starts it on the day with the catalog exercises', async () => {
+    plans = [legDay({ dateKey: '2026-11-11', going: ['maya', 'me'] })];
+    await render(<PlanScreen groupId="crew" planId="legs" />);
+
+    await user().press(screen.getByRole('button', { name: 'Start' }));
+    expect(createSession).toHaveBeenCalledWith(
+      'me',
+      expect.objectContaining({ title: 'Leg day' }),
+    );
+  });
+
+  it('lets its creator cancel it', async () => {
+    plans = [legDay({ createdBy: 'me', going: ['me'] })];
+    await render(<PlanScreen groupId="crew" planId="legs" />);
+
+    await user().press(screen.getByRole('button', { name: 'Plan options' }));
+    await user().press(screen.getByRole('button', { name: 'Cancel plan' }));
+    expect(cancelSharedPlan).toHaveBeenCalledWith(ME, 'crew', 'legs');
+  });
+
+  it('says so when a plan is gone', async () => {
+    await render(<PlanScreen groupId="crew" planId="nope" />);
+
+    expect(screen.getByText('This plan isn’t here anymore')).toBeTruthy();
   });
 });

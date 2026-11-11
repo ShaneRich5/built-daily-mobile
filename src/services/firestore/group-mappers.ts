@@ -11,6 +11,9 @@ import {
   type InvitePreview,
   type InvitePreviewPlan,
   type MemberUpcomingPlan,
+  SHARED_PLAN_LIMITS,
+  type SharedPlan,
+  type SharedPlanExercise,
 } from '@/types/group';
 import { DEFAULT_PROGRESS_SETTINGS, WEEKLY_GOAL_OPTIONS, type WeeklyGoalTarget } from '@/types/progress';
 
@@ -304,5 +307,90 @@ export function fromInvitePreview(preview: InvitePreview): DocData {
     workoutsThisWeek: preview.workoutsThisWeek,
     plans: preview.plans,
     updatedAt: preview.updatedAt,
+  };
+}
+
+// ── Plans together ───────────────────────────────────────────────────────
+
+function planExercises(value: unknown): SharedPlanExercise[] {
+  if (!Array.isArray(value)) return [];
+
+  const exercises: SharedPlanExercise[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== 'object') continue;
+    const { id, name, sets } = row as DocData;
+    const exerciseId = typeof id === 'string' ? id.slice(0, 128) : '';
+    const exerciseName = shortText(name, 200);
+    if (!exerciseId || !exerciseName) continue;
+    exercises.push({
+      id: exerciseId,
+      name: exerciseName,
+      sets: typeof sets === 'number' && Number.isFinite(sets) && sets > 0 ? Math.min(20, Math.round(sets)) : null,
+    });
+  }
+  return exercises.slice(0, SHARED_PLAN_LIMITS.exercises);
+}
+
+export function toSharedPlan(id: string, data: DocData | undefined): SharedPlan | null {
+  if (!data) return null;
+
+  const groupId = typeof data.groupId === 'string' ? data.groupId : '';
+  const dateKey = dateKeyOrNull(data.dateKey);
+  const label = shortText(data.label, SHARED_PLAN_LIMITS.label);
+  const createdBy = typeof data.createdBy === 'string' ? data.createdBy : '';
+  const createdAt = toDate(data.createdAt);
+  if (!groupId || !dateKey || !label || !createdBy || !createdAt) return null;
+
+  const goingAt: Record<string, Date> = {};
+  if (data.goingAt && typeof data.goingAt === 'object') {
+    for (const [uid, at] of Object.entries(data.goingAt as DocData)) {
+      const date = toDate(at);
+      if (date) goingAt[uid] = date;
+    }
+  }
+  const going = Array.isArray(data.going)
+    ? [...new Set(data.going.filter((uid): uid is string => typeof uid === 'string' && uid.length > 0))]
+    : [];
+
+  return {
+    id,
+    groupId,
+    dateKey,
+    time: typeof data.time === 'string' && TIME.test(data.time) ? data.time : null,
+    where: shortText(data.where, SHARED_PLAN_LIMITS.where),
+    label,
+    exercises: planExercises(data.exercises),
+    note: shortText(data.note, SHARED_PLAN_LIMITS.note),
+    createdBy,
+    createdByName: shortText(data.createdByName, GROUP_LIMITS.displayName) ?? 'Member',
+    going: going.slice(0, SHARED_PLAN_LIMITS.going),
+    goingAt,
+    createdAt,
+  };
+}
+
+/**
+ * A new plan together: every key the rules require, with the creator as the
+ * only one going. Null for a plan the rules would refuse.
+ */
+export function fromNewSharedPlan(plan: Omit<SharedPlan, 'id'>): DocData | null {
+  const label = plan.label.trim().slice(0, SHARED_PLAN_LIMITS.label);
+  if (!label || !DATE_KEY.test(plan.dateKey) || (plan.time !== null && !TIME.test(plan.time))) return null;
+
+  const tidy = (value: string | null, max: number) => value?.trim().slice(0, max) || null;
+
+  return {
+    groupId: plan.groupId,
+    dateKey: plan.dateKey,
+    time: plan.time,
+    where: tidy(plan.where, SHARED_PLAN_LIMITS.where),
+    label,
+    exercises: plan.exercises.slice(0, SHARED_PLAN_LIMITS.exercises),
+    note: tidy(plan.note, SHARED_PLAN_LIMITS.note),
+    createdBy: plan.createdBy,
+    createdByName: plan.createdByName.slice(0, GROUP_LIMITS.displayName),
+    going: plan.going,
+    goingAt: plan.goingAt,
+    createdAt: plan.createdAt,
   };
 }
