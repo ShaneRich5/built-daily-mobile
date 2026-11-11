@@ -5,13 +5,16 @@ import { HomeScreen } from '@/components/home/home-screen';
 import { useSession } from '@/contexts/session';
 import { bench, line, log, session } from '@/lib/session/session-test-helpers';
 import { signOut } from '@/services/auth';
+import { confirm } from '@/services/confirm';
 import {
+  deleteActivity,
   logActivity,
   moveScheduledWorkouts,
   skipScheduledWorkout,
   subscribeToProgressSettings,
   subscribeToRecentActivities,
   subscribeToScheduledWorkouts,
+  updateActivity,
 } from '@/services/firestore/home-repository';
 import {
   createSession,
@@ -24,6 +27,7 @@ import type { WorkoutPlan, WorkoutSession } from '@/types/workout';
 
 jest.mock('@/contexts/session');
 jest.mock('@/services/auth');
+jest.mock('@/services/confirm');
 jest.mock('@/services/firestore/workout-repository');
 jest.mock('@/services/firestore/home-repository');
 jest.mock('expo-router', () => ({
@@ -307,6 +311,95 @@ describe('Home', () => {
     await user().press(screen.getByRole('button', { name: 'Log walk' }));
 
     expect(screen.getByText(/Could not log that/)).toBeTruthy();
+  });
+
+  describe('a logged activity', () => {
+    const walk: Activity = {
+      id: 'walk-1',
+      activityTypeId: 'walk',
+      activityDate: '2026-11-10',
+      activityTime: '07:30',
+      durationMin: 35,
+      distanceMiles: 1.5,
+      locationName: 'Riverside',
+      notes: 'Before work',
+      createdAt: new Date(2026, 10, 10),
+      updatedAt: new Date(2026, 10, 10),
+    };
+
+    beforeEach(() => {
+      activities = [walk];
+      jest.mocked(updateActivity).mockResolvedValue(undefined);
+      jest.mocked(deleteActivity).mockResolvedValue(undefined);
+      jest.mocked(confirm).mockResolvedValue(true);
+    });
+
+    it('opens from Recent, filled in, and saves changes', async () => {
+      await render(<HomeScreen />);
+
+      await user().press(screen.getByRole('button', { name: /^Walk, Tue, Nov 10/ }));
+      expect(screen.getByText('Edit activity')).toBeTruthy();
+      expect(screen.getByLabelText('Minutes').props.value).toBe('35');
+      expect(screen.getByLabelText('Notes (optional)').props.value).toBe('Before work');
+
+      await user().clear(screen.getByLabelText('Minutes'));
+      await user().type(screen.getByLabelText('Minutes'), '50');
+      await user().press(screen.getByRole('button', { name: 'Save changes' }));
+
+      expect(updateActivity).toHaveBeenCalledWith('user-1', 'walk-1', {
+        activityTypeId: 'walk',
+        activityDate: '2026-11-10',
+        activityTime: '07:30',
+        durationMin: 50,
+        distanceMiles: 1.5,
+        // Not on the form, so kept as it was.
+        locationName: 'Riverside',
+        notes: 'Before work',
+      });
+      expect(screen.queryByText('Edit activity')).toBeNull();
+    });
+
+    it('opens from the day list under the chart', async () => {
+      await render(<HomeScreen />);
+
+      await user().press(screen.getByTestId('chart-day-2026-11-10'));
+      // The chart sits above Recent, so its day list comes first.
+      const [fromChart] = screen.getAllByRole('button', { name: /^Walk, / });
+      await user().press(fromChart);
+
+      expect(screen.getByText('Edit activity')).toBeTruthy();
+    });
+
+    it('deletes after asking', async () => {
+      await render(<HomeScreen />);
+
+      await user().press(screen.getByRole('button', { name: /^Walk, Tue, Nov 10/ }));
+      await user().press(screen.getByRole('button', { name: 'Delete' }));
+
+      expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ destructive: true }));
+      expect(deleteActivity).toHaveBeenCalledWith('user-1', 'walk-1');
+    });
+
+    it('keeps it when the delete is not confirmed', async () => {
+      jest.mocked(confirm).mockResolvedValue(false);
+      await render(<HomeScreen />);
+
+      await user().press(screen.getByRole('button', { name: /^Walk, Tue, Nov 10/ }));
+      await user().press(screen.getByRole('button', { name: 'Delete' }));
+
+      expect(deleteActivity).not.toHaveBeenCalled();
+      expect(screen.getByText('Edit activity')).toBeTruthy();
+    });
+
+    it('stays open, saying so, when the save fails', async () => {
+      jest.mocked(updateActivity).mockRejectedValue(new Error('offline'));
+      await render(<HomeScreen />);
+
+      await user().press(screen.getByRole('button', { name: /^Walk, Tue, Nov 10/ }));
+      await user().press(screen.getByRole('button', { name: 'Save changes' }));
+
+      expect(screen.getByText(/Could not save that/)).toBeTruthy();
+    });
   });
 
   it('opens the catalog and history, and signs out, from the account menu', async () => {

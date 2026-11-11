@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   limit,
@@ -14,6 +15,7 @@ import {
 
 import { getDb } from '@/services/firebase';
 import {
+  fromActivityEdit,
   fromNewActivity,
   toActivity,
   toProgressSettings,
@@ -155,6 +157,26 @@ export async function logActivity(userId: string, input: NewActivity): Promise<s
 
   const created = await addDoc(collection(getDb(), 'users', userId, 'activities'), data);
   return created.id;
+}
+
+/**
+ * Saves changes to a logged activity. Rejects when the edit is not something
+ * that can be saved, as `logActivity` does.
+ */
+export async function updateActivity(
+  userId: string,
+  activityId: string,
+  input: NewActivity,
+): Promise<void> {
+  const patch = fromActivityEdit(input, new Date());
+  if (!patch) throw new Error('That activity could not be saved.');
+
+  await updateDoc(doc(getDb(), 'users', userId, 'activities', activityId), patch);
+}
+
+/** Deletes a logged activity for good. */
+export async function deleteActivity(userId: string, activityId: string): Promise<void> {
+  await deleteDoc(doc(getDb(), 'users', userId, 'activities', activityId));
 }
 
 /** The lifter's goals, live. Yields the defaults while there is no document. */

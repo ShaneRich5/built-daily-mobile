@@ -41,6 +41,8 @@ one rather than assuming the app is broken.
 - **A planned workout you missed** shows a card on Home: do it today, move it
   to another day, or skip it.
 - **Logging an activity** — a walk, a ride, a game — from Home.
+- **Editing or deleting an activity**: tap it under Recent, or in the day
+  list under the 16-week chart.
 - **Your workout history** — "See all" under Recent, or the account menu,
   with anything still in progress pinned to the top.
 - **Opening a finished workout** to see a summary: how many exercises and
@@ -97,14 +99,13 @@ one rather than assuming the app is broken.
 
 Not bugs — these simply haven't been built on mobile yet:
 
-- Opening, editing or deleting an activity you logged.
+- An activity's location (it's kept when you edit one here, just not shown).
 - The old Progress layout's year heatmap, and a list of past weigh-ins
   (only the latest and the trend show here).
 - Opening an invite link straight into the app. Links open the website; type
   the code into Groups › Join instead.
 - Public profiles.
 - The planner's month view (the phone shows a week at a time).
-- Leaving a group's shared plan.
 - Google sign-in.
 
 ## 5. Rough edges to expect

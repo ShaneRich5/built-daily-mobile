@@ -23,6 +23,7 @@ import { useStartWorkout } from '@/hooks/use-start-workout';
 import { useTheme } from '@/hooks/use-theme';
 import { longDayLabel } from '@/lib/date-keys';
 import {
+  type HomeRecentItem,
   type HomeWeekDay,
   missedHeadline,
   pickSuggestedStart,
@@ -33,7 +34,7 @@ import { displayNameFromAuth } from '@/lib/user-profile';
 import { signOut } from '@/services/auth';
 import type { ScheduledWorkout } from '@/types/planner';
 
-type Panel = 'start' | 'account' | 'log' | 'move' | null;
+type Panel = 'start' | 'account' | 'log' | 'move' | { activityId: string } | null;
 
 /** How many other templates the Start menu lists before "Manage templates". */
 const MENU_TEMPLATE_LIMIT = 5;
@@ -118,7 +119,16 @@ export function HomeScreen() {
     },
   ];
 
-  const size: SheetSize = panel === 'log' ? 'tall' : 'content';
+  const editing =
+    panel !== null && typeof panel === 'object'
+      ? home.activities.find((activity) => activity.id === panel.activityId)
+      : undefined;
+  const openItem = (item: HomeRecentItem) =>
+    item.kind === 'workout'
+      ? router.push(`/session/${item.id}`)
+      : setPanel({ activityId: item.id });
+
+  const size: SheetSize = panel === 'log' || editing ? 'tall' : 'content';
 
   return (
     <Screen contentStyle={{ paddingBottom: BottomTabInset + 24 }}>
@@ -199,6 +209,7 @@ export function HomeScreen() {
                 if (day.planned) startEntry(day.planned);
               }}
               onOpenWorkout={(sessionId) => router.push(`/session/${sessionId}`)}
+              onOpenActivity={(activityId) => setPanel({ activityId })}
             />
           </View>
 
@@ -216,9 +227,7 @@ export function HomeScreen() {
                   key={`${item.kind}-${item.id}`}
                   title={item.title}
                   meta={item.meta}
-                  onPress={
-                    item.kind === 'workout' ? () => router.push(`/session/${item.id}`) : undefined
-                  }
+                  onPress={() => openItem(item)}
                 />
               ))
             )}
@@ -226,7 +235,11 @@ export function HomeScreen() {
         </>
       )}
 
-      <SheetHost visible={panel !== null} onClose={() => setPanel(null)} size={size}>
+      {/* An activity deleted elsewhere while its sheet is open just closes it. */}
+      <SheetHost
+        visible={panel !== null && (typeof panel !== 'object' || editing !== undefined)}
+        onClose={() => setPanel(null)}
+        size={size}>
         {panel === 'start' ? (
           <MenuPanel title="Start something else" actions={startActions} />
         ) : null}
@@ -246,6 +259,24 @@ export function HomeScreen() {
               const saved = await actions.logActivity(activity);
               if (saved) setPanel(null);
               return saved;
+            }}
+          />
+        ) : null}
+
+        {editing ? (
+          <LogActivityPanel
+            key={editing.id}
+            todayKey={todayKey}
+            activity={editing}
+            onSave={async (activity) => {
+              const saved = await actions.updateActivity(editing.id, activity);
+              if (saved) setPanel(null);
+              return saved;
+            }}
+            onDelete={async () => {
+              const deleted = await actions.deleteActivity(editing.id);
+              if (deleted) setPanel(null);
+              return deleted;
             }}
           />
         ) : null}

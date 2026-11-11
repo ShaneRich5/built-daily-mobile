@@ -5,6 +5,7 @@ import { cleanNumberInput } from '@/components/session/set-inputs';
 import { FormField } from '@/components/form-field';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Trash2Icon } from '@/components/ui/icons';
 import { SectionLabel } from '@/components/ui/section-label';
 import { SheetFrame } from '@/components/ui/sheet';
 import { Radius } from '@/constants/theme';
@@ -12,12 +13,17 @@ import { useTheme } from '@/hooks/use-theme';
 import { ACTIVITY_CATALOG, findActivityType } from '@/lib/activity-catalog';
 import { dateFromKey } from '@/lib/date-keys';
 import { isValidWorkoutTime } from '@/lib/session-edit';
-import { ACTIVITY_NOTE_LIMIT, type NewActivity } from '@/types/activity';
+import { confirm } from '@/services/confirm';
+import { type Activity, ACTIVITY_NOTE_LIMIT, type NewActivity } from '@/types/activity';
 
 type LogActivityPanelProps = {
   todayKey: string;
+  /** An activity already logged: the panel edits it instead of logging a new one. */
+  activity?: Activity;
   /** Resolves to whether it was saved; the panel stays open, with its input, when not. */
   onSave: (activity: NewActivity) => Promise<boolean>;
+  /** Editing only. Resolves to whether it was deleted. */
+  onDelete?: () => Promise<boolean>;
 };
 
 function numberOrNull(raw: string): number | null {
@@ -28,26 +34,30 @@ function numberOrNull(raw: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+const asText = (value: number | null) => (value === null ? '' : String(value));
+
 /**
  * Logging a walk, a ride, a game: anything that is not a workout but still
  * counts as showing up. Pick what it was, when, and optionally how long and
- * how far.
+ * how far. Given an `activity`, the same form edits it, and can delete it.
  */
-export function LogActivityPanel({ todayKey, onSave }: LogActivityPanelProps) {
+export function LogActivityPanel({ todayKey, activity, onSave, onDelete }: LogActivityPanelProps) {
   const theme = useTheme();
-  const [typeId, setTypeId] = useState<string | null>(null);
-  const [date, setDate] = useState(todayKey);
-  const [time, setTime] = useState('');
-  const [duration, setDuration] = useState('');
-  const [distance, setDistance] = useState('');
-  const [notes, setNotes] = useState('');
+  const editing = activity !== undefined;
+  const [typeId, setTypeId] = useState<string | null>(activity?.activityTypeId ?? null);
+  const [date, setDate] = useState(activity?.activityDate ?? todayKey);
+  const [time, setTime] = useState(activity?.activityTime ?? '');
+  const [duration, setDuration] = useState(asText(activity?.durationMin ?? null));
+  const [distance, setDistance] = useState(asText(activity?.distanceMiles ?? null));
+  const [notes, setNotes] = useState(activity?.notes ?? '');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const type = typeId ? findActivityType(typeId) : undefined;
   const dateInvalid = !dateFromKey(date.trim());
   const timeInvalid = time.trim() !== '' && !isValidWorkoutTime(time.trim());
-  const canSave = Boolean(type) && !dateInvalid && !timeInvalid && !saving;
+  const canSave = Boolean(type) && !dateInvalid && !timeInvalid && !saving && !deleting;
 
   const save = async () => {
     if (!type || !canSave) return;
@@ -61,28 +71,73 @@ export function LogActivityPanel({ todayKey, onSave }: LogActivityPanelProps) {
       activityTime: time.trim() || null,
       durationMin: numberOrNull(duration),
       distanceMiles: type.supportsDistance ? numberOrNull(distance) : null,
-      locationName: null,
+      // Not on the form yet; an edit keeps what was there.
+      locationName: activity?.locationName ?? null,
       notes: notes.trim() || null,
     });
 
     setSaving(false);
-    if (!saved) setError('Could not log that. Check your connection and try again.');
+    if (!saved) {
+      setError(
+        editing
+          ? 'Could not save that. Check your connection and try again.'
+          : 'Could not log that. Check your connection and try again.',
+      );
+    }
   };
+
+  const remove = async () => {
+    if (!onDelete || saving || deleting) return;
+
+    const ok = await confirm({
+      title: 'Delete this activity?',
+      message: 'It comes off your history and charts. This can’t be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+
+    setDeleting(true);
+    setError(null);
+    const deleted = await onDelete();
+    setDeleting(false);
+    if (!deleted) setError('Could not delete that. Check your connection and try again.');
+  };
+
+  const saveLabel = editing
+    ? 'Save changes'
+    : type
+      ? `Log ${type.name.toLowerCase()}`
+      : 'Pick what you did';
 
   return (
     <SheetFrame
       fill
-      title="Log activity"
-      subtitle="A walk, a ride, a game: it all counts as showing up."
+      title={editing ? 'Edit activity' : 'Log activity'}
+      subtitle={editing ? undefined : 'A walk, a ride, a game: it all counts as showing up.'}
       footer={
-        <Button
-          label={type ? `Log ${type.name.toLowerCase()}` : 'Pick what you did'}
-          variant="dark"
-          size="lg"
-          onPress={() => void save()}
-          disabled={!canSave}
-          busy={saving}
-        />
+        <View style={styles.footer}>
+          {editing && onDelete ? (
+            <Button
+              label="Delete"
+              icon={Trash2Icon}
+              variant="danger"
+              size="lg"
+              onPress={() => void remove()}
+              disabled={saving}
+              busy={deleting}
+            />
+          ) : null}
+          <Button
+            label={saveLabel}
+            variant="dark"
+            size="lg"
+            onPress={() => void save()}
+            disabled={!canSave}
+            busy={saving}
+            style={styles.flex}
+          />
+        </View>
       }>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.section}>
@@ -175,7 +230,7 @@ export function LogActivityPanel({ todayKey, onSave }: LogActivityPanelProps) {
         />
 
         {error ? (
-          <ThemedText type="small" themeColor="danger">
+          <ThemedText type="small" themeColor="danger" accessibilityRole="alert">
             {error}
           </ThemedText>
         ) : null}
@@ -207,6 +262,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 12,
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: 8,
   },
   flex: {
     flex: 1,
