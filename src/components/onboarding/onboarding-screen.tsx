@@ -23,6 +23,7 @@ import {
   saveProgressSettings,
 } from '@/services/firestore/planner-repository';
 import { completeOnboarding } from '@/services/firestore/user-profile-repository';
+import { syncGroups } from '@/services/group-sync';
 import { WEEKLY_GOAL_OPTIONS, type WeeklyGoalTarget } from '@/types/progress';
 
 type Step = 'goal' | 'days' | 'workouts';
@@ -66,6 +67,7 @@ export function OnboardingScreen() {
       }
 
       await completeOnboarding(user);
+      syncGroups(user);
       router.replace('/');
     } catch {
       setError('Could not save that. Check your connection and try again.');

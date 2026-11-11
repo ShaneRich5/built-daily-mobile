@@ -77,6 +77,15 @@ one rather than assuming the app is broken.
 - **Goals**: workouts a week, active days a week and an optional goal weight,
   from the Goals button on Progress.
 - **Body weight**: log today's weigh-in on Progress and see the trend.
+- **Groups** (a tab): start a gym buddy or a group of up to 12, or join one
+  with a code. See everyone's week (days trained and planned, against each
+  person's own goal) and cheer whoever trained today.
+- **Inviting**: a group's code to read out, and Share to send the link. The
+  link opens the website's join page; the code works typed into Groups › Join
+  here. The owner can reset the code, turn a buddy into a group, or delete it.
+- **Your row in your groups stays current**: finishing, editing or deleting a
+  workout, logging an activity, changing your goal or your plans updates what
+  your groups see, a moment later.
 - **The exercise catalog** (in the account menu).
 
 ## 4. What's still website-only
@@ -86,7 +95,11 @@ Not bugs — these simply haven't been built on mobile yet:
 - Opening, editing or deleting an activity you logged.
 - The old Progress layout's year heatmap, and a list of past weigh-ins
   (only the latest and the trend show here).
-- Groups, invites and public profiles.
+- Plans together: planning a workout with a group, "I'm in", and the plan
+  page. Plans made together on the website don't show here yet.
+- Opening an invite link straight into the app. Links open the website; type
+  the code into Groups › Join instead.
+- Public profiles.
 - The planner's month view (the phone shows a week at a time).
 - Leaving a group's shared plan.
 - Google sign-in.

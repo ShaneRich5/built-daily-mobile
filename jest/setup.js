@@ -19,3 +19,9 @@ jest.mock('react-native-safe-area-context', () =>
 jest.mock('expo-crypto', () => ({
   randomUUID: () => require('node:crypto').randomUUID(),
 }));
+
+// Keeping group rosters in step runs in the background after a workout,
+// activity, goal or planner write. It reads and writes Firestore on a timer,
+// which a component test has no business doing: it is a no-op here, and a
+// test that cares asserts on the mock.
+jest.mock('@/services/group-sync');
