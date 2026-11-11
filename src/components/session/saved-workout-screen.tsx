@@ -25,6 +25,8 @@ import { StatTile } from '@/components/ui/stat-tile';
 import { MaxContentWidth, Radius } from '@/constants/theme';
 import { useSession } from '@/contexts/session';
 import { useTheme } from '@/hooks/use-theme';
+import { useWorkoutHistory } from '@/hooks/use-workout-history';
+import { type PersonalRecord, sessionRecords } from '@/lib/progress-insights';
 import { applyStatusTransition } from '@/lib/session-edit';
 import { sessionDayLabel } from '@/lib/session-format';
 import {
@@ -50,6 +52,20 @@ export function SavedWorkoutScreen({ session }: { session: WorkoutSession }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { sessions: history, isLoading: historyLoading } = useWorkoutHistory(session.id);
+  // Records this workout set against the workouts before it — none until those
+  // have loaded, or every lift would look like a first. The first line of an
+  // exercise carries its pill, so a lift done twice is marked once.
+  const records = historyLoading
+    ? new Map<string, PersonalRecord>()
+    : sessionRecords([...history, session], session.id);
+  const recordLineIds = new Set(
+    [...records.keys()].flatMap((exerciseId) => {
+      const first = session.lines.find((line) => line.exerciseId === exerciseId);
+      return first ? [first.lineId] : [];
+    }),
+  );
 
   const muscles = musclesWorkedLabel(session.lines);
   const when = [sessionDayLabel(session), session.workoutTime ? timeLabel(session.workoutTime) : null]
@@ -188,6 +204,7 @@ export function SavedWorkoutScreen({ session }: { session: WorkoutSession }) {
                 key={line.lineId}
                 line={line}
                 note={session.exerciseNotesByLineId?.[line.lineId] ?? null}
+                record={recordLineIds.has(line.lineId) ? records.get(line.exerciseId) ?? null : null}
               />
             ))
           )}
@@ -210,13 +227,33 @@ export function SavedWorkoutScreen({ session }: { session: WorkoutSession }) {
 }
 
 /** One exercise as it was done: its name, each logged set as a chip, and its note. */
-function ExerciseSummaryCard({ line, note }: { line: SessionLine; note: string | null }) {
+function ExerciseSummaryCard({
+  line,
+  note,
+  record,
+}: {
+  line: SessionLine;
+  note: string | null;
+  /** The personal record this workout set on the exercise, if it set one. */
+  record: PersonalRecord | null;
+}) {
   const theme = useTheme();
   const chips = setChips(line);
 
   return (
     <Card style={styles.exercise}>
-      <ThemedText type="labelStrong">{line.nameSnapshot || 'Unnamed exercise'}</ThemedText>
+      <View style={styles.exerciseHeading}>
+        <ThemedText type="labelStrong" style={styles.exerciseName}>
+          {line.nameSnapshot || 'Unnamed exercise'}
+        </ThemedText>
+        {record ? (
+          <View
+            accessible
+            accessibilityLabel={`Personal record: ${record.weight} pounds for ${record.reps} ${record.reps === 1 ? 'rep' : 'reps'}`}>
+            <Pill label={`PR · ${record.weight} × ${record.reps}`} tone="warning" uppercase={false} />
+          </View>
+        ) : null}
+      </View>
 
       {chips.length > 0 ? (
         <View style={styles.chips}>
@@ -287,6 +324,15 @@ const styles = StyleSheet.create({
   },
   note: {
     paddingVertical: 10,
+  },
+  exerciseHeading: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  exerciseName: {
+    flex: 1,
   },
   section: {
     gap: 8,
