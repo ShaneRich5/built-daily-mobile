@@ -69,9 +69,12 @@ const BODY_REGIONS: readonly Slug[] = [
 export function MuscleChart({
   lines,
   gender = 'male',
+  title = 'Muscles worked',
 }: {
   lines: readonly SessionLine[];
   gender?: 'male' | 'female';
+  /** The heading beside the Front / Back switch. */
+  title?: string;
 }) {
   const theme = useTheme();
   const scheme = useColorScheme();
@@ -103,7 +106,7 @@ export function MuscleChart({
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <ThemedText type="label">Muscles worked</ThemedText>
+        <ThemedText type="label">{title}</ThemedText>
 
         <View style={styles.toggle}>
           {SIDES.map((option) => (

@@ -55,9 +55,9 @@ export function useStartWorkout(): State {
         const draft = plan ? sessionFromPlan(plan, now, newLineId) : blankSession(now);
         const sessionId = await createSession(uid, draft);
 
-        // Into the exercise editor, not the read view: the workout is empty (or
-        // a plan's worth of empty sets) and the next thing to do is fill it in.
-        router.push(`/session/${sessionId}/exercises`);
+        // Straight to the workout: it is in progress, so the route shows the
+        // logging screen, with the first exercise open.
+        router.push(`/session/${sessionId}`);
       } catch {
         setError('Could not start a workout. Check your connection and try again.');
       } finally {

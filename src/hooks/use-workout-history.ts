@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useSession } from '@/contexts/session';
-import { lastPerformanceByExercise, type ExercisePerformance } from '@/lib/exercise-history';
 import { subscribeToRecentSessions } from '@/services/firestore/workout-repository';
 import type { WorkoutSession } from '@/types/workout';
 
@@ -11,11 +10,18 @@ type Loaded = {
   sessions: WorkoutSession[];
 };
 
-/** Stable identity, so the memo below does not recompute on every render. */
+/** Stable identity while nothing has loaded, so dependents do not recompute. */
 const NO_SESSIONS: WorkoutSession[] = [];
 
+type State = {
+  /** Completed workouts, newest first, without the one on screen. */
+  sessions: WorkoutSession[];
+  isLoading: boolean;
+};
+
 /**
- * What each exercise looked like last time, keyed by `exerciseId`.
+ * The lifter's recent finished workouts — what "last time", "previous
+ * sessions" and "usually next" are all worked out from.
  *
  * Reads the same recent workouts the home list does, deliberately: an
  * identical query is served from the cache Firestore already holds for it,
@@ -23,12 +29,10 @@ const NO_SESSIONS: WorkoutSession[] = [];
  * therefore whatever the home list covers — enough to answer "what did I lift
  * last time" for anything in a current routine.
  *
- * A failure here is silent. This is a hint next to an input, not the input:
- * losing it should cost the lifter a convenience, not the ability to log.
+ * A failure here is silent. These are hints beside an input, not the input:
+ * losing them should cost the lifter a convenience, not the ability to log.
  */
-export function useExerciseHistory(
-  excludeSessionId?: string,
-): Map<string, ExercisePerformance> {
+export function useWorkoutHistory(excludeSessionId?: string): State {
   const { user } = useSession();
   const uid = user?.uid;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -45,10 +49,13 @@ export function useExerciseHistory(
   // Derived rather than cleared in the effect, as in `useRecentSessions`: no
   // second render pass, and no window where the previous user's workouts are
   // still the ones being read.
-  const sessions = loaded && loaded.uid === uid ? loaded.sessions : NO_SESSIONS;
+  if (!loaded || loaded.uid !== uid) return { sessions: NO_SESSIONS, isLoading: Boolean(uid) };
 
-  return useMemo(
-    () => lastPerformanceByExercise(sessions, excludeSessionId),
-    [sessions, excludeSessionId],
-  );
+  return {
+    // The list arrives newest first; in-progress ones are not history yet.
+    sessions: loaded.sessions.filter(
+      (session) => session.status === 'completed' && session.id !== excludeSessionId,
+    ),
+    isLoading: false,
+  };
 }
