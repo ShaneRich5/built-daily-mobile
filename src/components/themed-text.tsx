@@ -1,73 +1,42 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { type ThemeColor, Typography, type TypographyVariant } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+/**
+ * `linkPrimary` and `code` predate the type scale and are kept so older screens
+ * keep compiling; they resolve to `link` in the accent colour and `monoSmall`.
+ */
+export type ThemedTextType = TypographyVariant | 'linkPrimary' | 'code';
+
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?: ThemedTextType;
   themeColor?: ThemeColor;
 };
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
-  const theme = useTheme();
+/** Variants that carry their own colour unless one is asked for. */
+const DEFAULT_COLOR: Partial<Record<ThemedTextType, ThemeColor>> = {
+  caption: 'textSecondary',
+  overline: 'textSecondary',
+  link: 'textBody',
+  linkPrimary: 'tint',
+};
 
-  return (
-    <Text
-      style={[
-        { color: theme[themeColor ?? 'text'] },
-        type === 'default' && styles.default,
-        type === 'title' && styles.title,
-        type === 'small' && styles.small,
-        type === 'smallBold' && styles.smallBold,
-        type === 'subtitle' && styles.subtitle,
-        type === 'link' && styles.link,
-        type === 'linkPrimary' && styles.linkPrimary,
-        type === 'code' && styles.code,
-        style,
-      ]}
-      {...rest}
-    />
-  );
+function variantFor(type: ThemedTextType): TypographyVariant {
+  if (type === 'linkPrimary') return 'link';
+  if (type === 'code') return 'monoSmall';
+  return type;
 }
 
-const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
-  },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
-  },
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
-  },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 14,
-  },
-  linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
-  },
-  code: {
-    fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
-    fontSize: 12,
-  },
-});
+/**
+ * Text in the app's type scale and theme colours.
+ *
+ * Weight comes from the variant's font family, never from `fontWeight` — see
+ * `FontFamily` in the theme for why.
+ */
+export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
+  const theme = useTheme();
+  const color = theme[themeColor ?? DEFAULT_COLOR[type] ?? 'text'];
+
+  return <Text style={[Typography[variantFor(type)], { color }, style]} {...rest} />;
+}

@@ -5,7 +5,8 @@ import { FormField } from '@/components/form-field';
 import { NoteField } from '@/components/note-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Card } from '@/components/ui/card';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { startingSetsFrom, type ExercisePerformance } from '@/lib/exercise-history';
 import {
@@ -71,7 +72,7 @@ export function ExerciseLineEditor({
   };
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <Card style={styles.card}>
       <FormField
         label="Exercise"
         value={line.nameSnapshot}
@@ -160,7 +161,7 @@ export function ExerciseLineEditor({
           style={styles.flex}
         />
       </View>
-    </ThemedView>
+    </Card>
   );
 }
 
@@ -182,7 +183,7 @@ function LastTime({
   const sets = history.sets.map((set) => formatSet(set, history.metric)).join(' · ');
 
   return (
-    <ThemedView type="backgroundSelected" style={styles.lastTime}>
+    <ThemedView type="backgroundElement" style={styles.lastTime}>
       <ThemedText type="small" themeColor="textSecondary">
         Last time · {dayLabel(history.performedAt)}
       </ThemedText>
@@ -223,7 +224,10 @@ function SetNumberInput({
         placeholderTextColor={theme.textSecondary}
         keyboardType="decimal-pad"
         editable={!disabled}
-        style={[styles.setInput, { backgroundColor: theme.background, color: theme.text }]}
+        style={[
+          styles.setInput,
+          { backgroundColor: theme.background, borderColor: theme.border, color: theme.text },
+        ]}
       />
       <ThemedText type="small" themeColor="textSecondary">
         {label}
@@ -234,9 +238,7 @@ function SetNumberInput({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Spacing.three,
     gap: Spacing.two,
-    padding: Spacing.three,
   },
   set: {
     gap: Spacing.one,
@@ -263,6 +265,8 @@ const styles = StyleSheet.create({
   },
   setInput: {
     borderRadius: Spacing.two,
+    borderWidth: 1,
+    fontFamily: FontFamily.mono,
     fontSize: 16,
     // A fixed width, not a minimum: inside a row these stretch to fill and
     // crowd out the fields after them.

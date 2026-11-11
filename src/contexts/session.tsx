@@ -2,6 +2,7 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { createContext, use, useEffect, useState, type PropsWithChildren } from 'react';
 
 import { getFirebaseAuth } from '@/services/firebase';
+import { ensureUserProfile } from '@/services/firestore/user-profile-repository';
 
 type SessionValue = {
   user: User | null;
@@ -27,6 +28,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
     return onAuthStateChanged(getFirebaseAuth(), (nextUser) => {
       setUser(nextUser);
       setIsLoading(false);
+
+      // Creates `users/{uid}` the first time, and keeps its name and timezone
+      // current after that. Not awaited: it is best-effort and must never hold
+      // up getting into the app.
+      if (nextUser) void ensureUserProfile(nextUser);
     });
   }, []);
 

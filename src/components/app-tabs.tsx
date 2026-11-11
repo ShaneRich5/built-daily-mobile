@@ -1,43 +1,47 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { FontFamily } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
+/**
+ * The bottom tab bar, drawn by the platform (UITabBar / Material bottom
+ * navigation) rather than in JS, with the design's colours applied where each
+ * platform lets them be.
+ *
+ * Icons are platform symbols — SF Symbols on iOS, Material Symbols on Android —
+ * chosen to match the Lucide icons the canvas draws.
+ *
+ * The redesign's bar is Home / Planner / Groups / Progress. Those destinations
+ * arrive one phase at a time; until each exists, the tabs that already work
+ * stay, so the bar never has a dead tab.
+ */
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const theme = useTheme();
 
   return (
     <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      backgroundColor={theme.surface}
+      iconColor={{ default: theme.textSecondary, selected: theme.text }}
+      // Android's pill behind the selected icon.
+      indicatorColor={theme.backgroundElement}
+      labelStyle={{
+        default: { color: theme.textSecondary, fontFamily: FontFamily.medium, fontSize: 11 },
+        selected: { color: theme.text, fontFamily: FontFamily.semibold, fontSize: 11 },
+      }}
+      tintColor={theme.text}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="plans">
         <NativeTabs.Trigger.Label>Plans</NativeTabs.Trigger.Label>
-        {/* Platform symbols rather than a bundled PNG: these two tabs arrived
-            without artwork, and SF Symbols / Material Symbols need none. */}
         <NativeTabs.Trigger.Icon sf="list.bullet.rectangle" md="list_alt" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="exercises">
         <NativeTabs.Trigger.Label>Exercises</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="dumbbell" md="fitness_center" />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

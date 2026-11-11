@@ -1,16 +1,14 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui/card';
 import { Spacing } from '@/constants/theme';
 import { useSession } from '@/contexts/session';
-import { useTheme } from '@/hooks/use-theme';
 import { signOut } from '@/services/auth';
 
 export function AccountCard() {
   const { user } = useSession();
-  const theme = useTheme();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   async function handleSignOut() {
@@ -23,24 +21,24 @@ export function AccountCard() {
   }
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      <ThemedView type="backgroundElement" style={styles.details}>
-        <ThemedText type="smallBold">{user?.displayName || 'Signed in'}</ThemedText>
+    <Card style={styles.card}>
+      <View style={styles.details}>
+        <ThemedText type="label">{user?.displayName || 'Signed in'}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
           {user?.email}
         </ThemedText>
-      </ThemedView>
+      </View>
 
       <Pressable
         onPress={handleSignOut}
         disabled={isSigningOut}
         accessibilityRole="button"
         style={isSigningOut && styles.disabled}>
-        <ThemedText type="smallBold" style={{ color: theme.tint }}>
+        <ThemedText type="link">
           Sign out
         </ThemedText>
       </Pressable>
-    </ThemedView>
+    </Card>
   );
 }
 
@@ -48,12 +46,9 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    borderRadius: Spacing.four,
     flexDirection: 'row',
     gap: Spacing.three,
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
   },
   details: {
     flexShrink: 1,

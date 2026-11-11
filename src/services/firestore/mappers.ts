@@ -1,6 +1,7 @@
 import type {
   ExerciseMetric,
   PlanLine,
+  PlanRestPreferences,
   SessionLine,
   SessionStatus,
   SetLog,
@@ -63,6 +64,9 @@ function toSetLog(raw: DocData): SetLog {
     resistanceLevel: num(raw.resistanceLevel),
     distanceMiles: num(raw.distanceMiles),
     note: str(raw.note),
+    // Only when the document has it: an absent `done` means "infer from the
+    // values" (see `isSetDone`), which is not the same thing as `false`.
+    ...(typeof raw.done === 'boolean' ? { done: raw.done } : {}),
   };
 }
 
@@ -116,8 +120,21 @@ function toPlanLine(raw: DocData): PlanLine {
   };
 }
 
+const REST_SECONDS: PlanRestPreferences['defaultRestSec'][] = [30, 60, 90, 120];
+
+function toRestPreferences(value: unknown): PlanRestPreferences | null {
+  if (typeof value !== 'object' || value === null) return null;
+
+  const raw = value as DocData;
+  const defaultRestSec = REST_SECONDS.find((seconds) => seconds === raw.defaultRestSec);
+  if (typeof raw.autoRestTimer !== 'boolean' || defaultRestSec === undefined) return null;
+
+  return { autoRestTimer: raw.autoRestTimer, defaultRestSec };
+}
+
 export function toWorkoutPlan(id: string, raw: DocData): WorkoutPlan {
   const createdAt = toDate(raw.createdAt) ?? new Date(0);
+  const restPreferences = toRestPreferences(raw.restPreferences);
 
   return {
     id,
@@ -126,6 +143,7 @@ export function toWorkoutPlan(id: string, raw: DocData): WorkoutPlan {
     createdAt,
     updatedAt: toDate(raw.updatedAt) ?? createdAt,
     lines: Array.isArray(raw.lines) ? raw.lines.map((l) => toPlanLine(l as DocData)) : [],
+    ...(restPreferences ? { restPreferences } : {}),
   };
 }
 
@@ -166,6 +184,9 @@ function fromSetLog(set: SetLog): DocData {
     resistanceLevel: set.resistanceLevel,
     distanceMiles: set.distanceMiles,
     note: set.note,
+    // Written back only if it was there, so re-saving a workout never adds the
+    // field to sets that predate it — and never strips it from sets that have it.
+    ...(set.done !== undefined ? { done: set.done } : {}),
   };
 }
 

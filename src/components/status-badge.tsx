@@ -1,27 +1,23 @@
-import { StyleSheet } from 'react-native';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { sessionStatusColor, sessionStatusLabel } from '@/lib/session-format';
+import { CheckIcon } from '@/components/ui/icons';
+import { Pill, type PillTone } from '@/components/ui/pill';
+import { sessionStatusLabel } from '@/lib/session-format';
 import type { SessionStatus } from '@/types/workout';
+
+const TONE: Record<SessionStatus, PillTone> = {
+  in_progress: 'warning',
+  completed: 'success',
+  discarded: 'danger',
+};
 
 /** The state a workout is in: in progress, completed, or discarded. */
 export function StatusBadge({ status }: { status: SessionStatus }) {
   return (
-    <ThemedView type="backgroundSelected" style={styles.badge}>
-      <ThemedText type="small" themeColor={sessionStatusColor(status)}>
-        {sessionStatusLabel(status)}
-      </ThemedText>
-    </ThemedView>
+    <Pill
+      label={sessionStatusLabel(status)}
+      tone={TONE[status]}
+      // The amber dot is the designs' mark for a workout still open.
+      dot={status === 'in_progress'}
+      icon={status === 'completed' ? CheckIcon : undefined}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    alignSelf: 'flex-start',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.half,
-  },
-});

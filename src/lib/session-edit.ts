@@ -1,4 +1,4 @@
-import { isLoggedSet } from '@/lib/exercise-history';
+import { asFreshSet, isLoggedSet } from '@/lib/exercise-history';
 import type {
   ExerciseMetric,
   SessionLine,
@@ -228,12 +228,13 @@ export function toDraftSet(set: SetLog): DraftSet {
  * Numbers carry forward from the set before it, since sets in a row usually
  * repeat, but the note does not: a note describes the set it was written for,
  * and inheriting "failed last rep" onto a set nobody has done yet would be a
- * lie the lifter has to notice and delete.
+ * lie the lifter has to notice and delete. Nor does the tick: the set before
+ * being done says nothing about this one.
  */
 export function nextDraftSet(previous: DraftSet | undefined): DraftSet {
   if (!previous) return toDraftSet(EMPTY_SET);
 
-  return { ...previous, original: { ...previous.original, note: null }, note: '' };
+  return { ...previous, original: asFreshSet(previous.original), note: '' };
 }
 
 export function toDraftLines(lines: readonly SessionLine[]): DraftLine[] {

@@ -1,8 +1,8 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ActionButton } from '@/components/action-button';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui/card';
 import { Spacing } from '@/constants/theme';
 import {
   planPreview,
@@ -24,15 +24,15 @@ export function PlanRow({ plan, onStart, busy }: PlanRowProps) {
   const source = planSourceLabel(plan);
 
   return (
-    <ThemedView type="backgroundElement" style={styles.row}>
-      <ThemedView type="backgroundElement" style={styles.titleLine}>
-        <ThemedText type="smallBold" style={styles.title} numberOfLines={1}>
+    <Card style={styles.row}>
+      <View style={styles.titleLine}>
+        <ThemedText type="label" style={styles.title} numberOfLines={1}>
           {plan.name || 'Untitled plan'}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
           {planUpdatedLabel(plan)}
         </ThemedText>
-      </ThemedView>
+      </View>
 
       <ThemedText type="small" themeColor="textSecondary">
         {[planVolumeLabel(plan), source].filter(Boolean).join(' · ')}
@@ -53,15 +53,13 @@ export function PlanRow({ plan, onStart, busy }: PlanRowProps) {
         disabled={plan.lines.length === 0}
         style={styles.start}
       />
-    </ThemedView>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    borderRadius: Spacing.three,
     gap: Spacing.one,
-    padding: Spacing.three,
   },
   titleLine: {
     alignItems: 'center',

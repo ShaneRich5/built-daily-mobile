@@ -344,6 +344,14 @@ describe('nextDraftSet', () => {
     expect(fromDraftSet(next).note).toBeNull();
   });
 
+  it('does not inherit the tick from the set before it', () => {
+    const [previous] = toDraftLines([
+      line('a', 'Bench', [{ ...emptySet, weight: 135, reps: 8, done: true }]),
+    ])[0].sets;
+
+    expect('done' in fromDraftSet(nextDraftSet(previous))).toBe(false);
+  });
+
   it('gives a blank set when there is nothing to copy', () => {
     expect(nextDraftSet(undefined)).toMatchObject({ weight: '', reps: '', note: '' });
   });

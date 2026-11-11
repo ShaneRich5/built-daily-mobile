@@ -1,12 +1,18 @@
 const preset = require('jest-expo/jest-preset');
 
 // Packages Jest has to run Babel over rather than load as-is: the firebase ones
-// ship untranspiled ESM, and react-native-body-highlighter ships raw JSX inside
-// its `dist/*.js` (Metro transpiles node_modules, so only Jest trips on it).
+// ship untranspiled ESM, react-native-body-highlighter ships raw JSX inside its
+// `dist/*.js`, and lucide-react-native resolves to ESM `.mjs` files (Metro
+// transpiles node_modules, so only Jest trips on these).
 // jest-expo's own ignore pattern is an allow-list inside a negative lookahead;
 // these names get appended to it rather than the whole pattern being restated,
 // so an upstream change to the preset's list is not silently overwritten.
-const ESM_PACKAGES_TO_TRANSFORM = ['firebase', '@firebase', 'react-native-body-highlighter'];
+const ESM_PACKAGES_TO_TRANSFORM = [
+  'firebase',
+  '@firebase',
+  'react-native-body-highlighter',
+  'lucide-react-native',
+];
 
 module.exports = {
   ...preset,

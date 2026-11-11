@@ -1,19 +1,21 @@
-import { ActivityIndicator, Pressable, StyleSheet, type ViewStyle } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Button } from '@/components/ui/button';
 
 type ActionButtonProps = {
   label: string;
   onPress: () => void;
-  /** `primary` fills with the tint; `secondary` and `danger` stay quieter. */
+  /** `primary` fills with the accent; `secondary` and `danger` stay quieter. */
   variant?: 'primary' | 'secondary' | 'danger';
   disabled?: boolean;
   busy?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
+/**
+ * The button the pre-redesign screens were built with, now drawn by `Button`.
+ * New screens use `Button` directly, which has the full set of variants.
+ */
 export function ActionButton({
   label,
   onPress,
@@ -22,40 +24,14 @@ export function ActionButton({
   busy = false,
   style,
 }: ActionButtonProps) {
-  const theme = useTheme();
-
-  const background = variant === 'primary' ? theme.tint : theme.backgroundElement;
-  const labelColor =
-    variant === 'primary' ? theme.background : variant === 'danger' ? theme.danger : theme.text;
-
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: disabled || busy }}
-      disabled={disabled || busy}
+    <Button
+      label={label}
       onPress={onPress}
-      style={[styles.button, { backgroundColor: background }, (disabled || busy) && styles.disabled, style]}
-    >
-      {busy ? (
-        <ActivityIndicator color={labelColor} />
-      ) : (
-        <ThemedText type="smallBold" style={{ color: labelColor }}>
-          {label}
-        </ThemedText>
-      )}
-    </Pressable>
+      variant={variant}
+      disabled={disabled}
+      busy={busy}
+      style={style}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    alignItems: 'center',
-    borderRadius: 10,
-    justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: Spacing.three,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});

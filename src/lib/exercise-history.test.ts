@@ -1,5 +1,7 @@
 import {
+  asFreshSet,
   isLoggedSet,
+  isSetDone,
   lastPerformanceByExercise,
   startingSetsFrom,
 } from '@/lib/exercise-history';
@@ -62,6 +64,36 @@ describe('isLoggedSet', () => {
   // A note alone is not a performance — there is nothing to start from.
   it('rejects a set carrying only a note', () => {
     expect(isLoggedSet(set({ note: 'felt heavy' }))).toBe(false);
+  });
+});
+
+describe('isSetDone', () => {
+  it('trusts the flag when the document has one', () => {
+    expect(isSetDone(set({ weight: 135, reps: 8, done: true }))).toBe(true);
+  });
+
+  // Numbers typed in but not ticked yet — the web writes this mid-workout.
+  it('respects an explicit false even when the set has values', () => {
+    expect(isSetDone(set({ weight: 135, reps: 8, done: false }))).toBe(false);
+  });
+
+  // Sets logged before the field existed, or written by the MCP server.
+  it('treats a set with values and no flag as done', () => {
+    expect(isSetDone(set({ weight: 135, reps: 8 }))).toBe(true);
+  });
+
+  it('treats an empty set with no flag as not done', () => {
+    expect(isSetDone(set())).toBe(false);
+  });
+});
+
+describe('asFreshSet', () => {
+  it('keeps the numbers and drops the note and the tick', () => {
+    const fresh = asFreshSet(set({ weight: 135, reps: 8, note: 'felt heavy', done: true }));
+
+    expect(fresh).toEqual(set({ weight: 135, reps: 8 }));
+    // Absent, not false: a fresh set has not been marked either way.
+    expect('done' in fresh).toBe(false);
   });
 });
 
@@ -181,6 +213,13 @@ describe('startingSetsFrom', () => {
   // The note described the set it was written for, not the one about to be done.
   it('drops the notes', () => {
     expect(startingSetsFrom(performance).every((s) => s.note === null)).toBe(true);
+  });
+
+  // Last time's sets were all ticked; this time's have not been done yet.
+  it('does not open the new workout with its sets already checked off', () => {
+    const ticked = { ...performance, sets: performance.sets.map((s) => ({ ...s, done: true })) };
+
+    expect(startingSetsFrom(ticked).some((s) => 'done' in s)).toBe(false);
   });
 
   it('does not hand back the stored sets themselves', () => {

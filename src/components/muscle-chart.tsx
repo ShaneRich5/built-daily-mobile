@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Body, { type ExtendedBodyPart, type Slug } from 'react-native-body-highlighter';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui/card';
 import { MaxContentWidth, MuscleChartColors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -101,9 +101,9 @@ export function MuscleChart({
   const worked = activation.slice(0, CAPTION_LIMIT).map(({ slug }) => muscleLabel(slug));
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <Card style={styles.card}>
       <View style={styles.header}>
-        <ThemedText type="smallBold">Muscles worked</ThemedText>
+        <ThemedText type="label">Muscles worked</ThemedText>
 
         <View style={styles.toggle}>
           {SIDES.map((option) => (
@@ -116,7 +116,7 @@ export function MuscleChart({
                 styles.toggleButton,
                 {
                   backgroundColor:
-                    side === option ? theme.backgroundSelected : theme.backgroundElement,
+                    side === option ? theme.backgroundElement : theme.surface,
                 },
               ]}
             >
@@ -139,7 +139,7 @@ export function MuscleChart({
           gender={gender}
           scale={scale}
           colors={ramp}
-          border={theme.textSecondary}
+          border={theme.textFaint}
           defaultFill={rest}
           // The chart is tappable everywhere, including the head and the parts
           // this workout never touched. Only a muscle actually shaded has a
@@ -153,7 +153,7 @@ export function MuscleChart({
       <ThemedText type="small" themeColor="textSecondary">
         {captionFor(selected, worked)}
       </ThemedText>
-    </ThemedView>
+    </Card>
   );
 }
 
@@ -170,9 +170,7 @@ function captionFor(selected: MuscleSlug | null, worked: readonly string[]): str
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Spacing.three,
     gap: Spacing.two,
-    padding: Spacing.three,
   },
   header: {
     alignItems: 'center',
