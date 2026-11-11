@@ -3,6 +3,7 @@ import {
   fromGroupMember,
   fromInvitePreview,
   fromNewGroup,
+  fromNewSharedPlan,
   generateInviteCode,
   normalizeInviteCode,
   toCheer,
@@ -11,6 +12,7 @@ import {
   toGroupMembership,
   toInviteCode,
   toInvitePreview,
+  toSharedPlan,
 } from '@/services/firestore/group-mappers';
 import type { GroupMember } from '@/types/group';
 
@@ -217,5 +219,56 @@ describe('invite previews', () => {
       p1: { dateKey: '2026-11-12', label: 'Legs', time: '06:30', where: 'Iron Works', goingFirstNames: ['Maya'] },
     });
     expect(preview?.invitedByName).toBe('A friend');
+  });
+});
+
+describe('plans together', () => {
+  const plan = {
+    groupId: 'g',
+    dateKey: '2026-11-12',
+    time: '06:30',
+    where: ' Iron Works ',
+    label: ' Leg day ',
+    exercises: [{ id: 'squat', name: 'Back squat', sets: 4 }],
+    note: '',
+    createdBy: 'me',
+    createdByName: 'Sam Lee',
+    going: ['me'],
+    goingAt: { me: AT },
+    createdAt: AT,
+  };
+
+  it('writes every key the rules require, tidied', () => {
+    const data = fromNewSharedPlan(plan);
+    expect(Object.keys(data ?? {}).sort()).toEqual(
+      ['createdAt', 'createdBy', 'createdByName', 'dateKey', 'exercises', 'going', 'goingAt', 'groupId', 'label', 'note', 'time', 'where'],
+    );
+    expect(data).toMatchObject({ label: 'Leg day', where: 'Iron Works', note: null, going: ['me'] });
+  });
+
+  it('refuses a plan without a name, a real day or a real time', () => {
+    expect(fromNewSharedPlan({ ...plan, label: '  ' })).toBeNull();
+    expect(fromNewSharedPlan({ ...plan, dateKey: 'Thursday' })).toBeNull();
+    expect(fromNewSharedPlan({ ...plan, time: '6:30' })).toBeNull();
+  });
+
+  it('reads a plan, dropping what it cannot use', () => {
+    const read = toSharedPlan('p1', {
+      ...plan,
+      createdAt: ts(AT),
+      time: 'early',
+      going: ['me', 'me', 'maya', 7],
+      goingAt: { me: ts(AT), maya: 'soon' },
+      exercises: [{ id: 'squat', name: 'Back squat', sets: 40 }, { name: 'No id' }],
+    });
+    expect(read).toMatchObject({
+      id: 'p1',
+      label: 'Leg day',
+      time: null,
+      going: ['me', 'maya'],
+      goingAt: { me: AT },
+      exercises: [{ id: 'squat', name: 'Back squat', sets: 20 }],
+    });
+    expect(toSharedPlan('p', { ...plan, createdAt: ts(AT), label: '' })).toBeNull();
   });
 });

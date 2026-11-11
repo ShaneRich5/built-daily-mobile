@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar, PrivacyNote, StackedAvatars } from '@/components/groups/group-ui';
 import { failureMessage, JoinPanel, NewGroupPanel, type NewGroupInput } from '@/components/groups/group-panels';
+import { PlanRowItem } from '@/components/groups/plan-ui';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -16,14 +17,17 @@ import { useSession } from '@/contexts/session';
 import { useGroupsHome } from '@/hooks/use-groups';
 import { useTheme } from '@/hooks/use-theme';
 import {
+  buildComingUpRow,
   buildGroupWeek,
   groupCompactSummary,
   groupDisplayName,
   groupSummary,
   joinNames,
   spacedCode,
+  type PlanRow,
   trainedTodayOthers,
 } from '@/lib/groups-model';
+import { joinSharedPlan } from '@/services/firestore/group-plan-repository';
 import { cheer, createGroup, joinGroupByCode } from '@/services/firestore/group-repository';
 import { GROUP_LIMITS } from '@/types/group';
 
@@ -41,6 +45,8 @@ export function GroupsScreen() {
   const { todayKey, myUid } = data;
   const [panel, setPanel] = useState<Panel>(null);
   const [cheering, setCheering] = useState(false);
+  const [joiningPlanId, setJoiningPlanId] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
 
   const memberships = data.memberships ?? [];
   const groups = memberships.map((membership) => {
@@ -55,9 +61,32 @@ export function GroupsScreen() {
       id: membership.groupId,
       group: snapshot?.group,
       name,
+      members,
+      plans: snapshot?.plans ?? [],
       week: buildGroupWeek(members, todayKey, myUid),
     };
   });
+
+  const comingUp = groups
+    .filter((group) => group.group)
+    .flatMap((group) => group.plans.map((plan) => buildComingUpRow(plan, group.name, group.members, myUid)))
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.meta.localeCompare(b.meta));
+
+  const openPlan = (row: PlanRow) =>
+    router.push({ pathname: '/groups/[groupId]/plans/[planId]', params: { groupId: row.groupId, planId: row.id } });
+
+  const imIn = async (row: PlanRow) => {
+    if (!user) return;
+    setJoiningPlanId(row.id);
+    setPlanError(null);
+    try {
+      await joinSharedPlan(user, row.groupId, row.id);
+    } catch (error) {
+      setPlanError(failureMessage(error, 'Couldn’t add you to that plan. Check your connection and try again.'));
+    } finally {
+      setJoiningPlanId(null);
+    }
+  };
 
   const loading =
     data.memberships === null || groups.some((group) => group.group === undefined && group.week.length === 0);
@@ -142,6 +171,38 @@ export function GroupsScreen() {
           </Card>
         ) : (
           <>
+            <View style={styles.section}>
+              <View style={styles.labelRow}>
+                <SectionLabel>Coming up together</SectionLabel>
+                <ThemedText type="caption">Next 7 days</ThemedText>
+              </View>
+              {comingUp.length > 0 ? (
+                <Card padded={false}>
+                  {comingUp.map((row, i) => (
+                    <PlanRowItem
+                      key={`${row.groupId}-${row.id}`}
+                      row={row}
+                      divider={i > 0}
+                      busy={joiningPlanId === row.id}
+                      onOpen={() => openPlan(row)}
+                      onImIn={() => void imIn(row)}
+                    />
+                  ))}
+                </Card>
+              ) : (
+                <Card>
+                  <ThemedText type="small" themeColor="textMuted">
+                    Nothing planned together yet. Open a group and plan a workout; anyone can say I’m in.
+                  </ThemedText>
+                </Card>
+              )}
+              {planError ? (
+                <ThemedText type="small" themeColor="danger" accessibilityRole="alert">
+                  {planError}
+                </ThemedText>
+              ) : null}
+            </View>
+
             <View style={styles.section}>
               <SectionLabel>Your groups</SectionLabel>
               <Pressable
@@ -296,6 +357,11 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 8,
+  },
+  labelRow: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   featured: {
     borderRadius: Radius.xl,

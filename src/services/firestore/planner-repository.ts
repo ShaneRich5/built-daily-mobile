@@ -1,12 +1,17 @@
 import {
   addDoc,
+  arrayRemove,
   collection,
   deleteDoc,
+  deleteField,
   doc,
+  getDocs,
   onSnapshot,
   query,
   setDoc,
+  updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 
 import { getDb } from '@/services/firebase';
@@ -78,17 +83,46 @@ export async function addScheduledWorkout(
 }
 
 /**
- * Removes a planner entry. An entry linked to a group's plan together is not
- * deleted here: on the web, deleting one also takes the lifter off the plan's
- * going list, which mobile cannot do until Groups exists. Callers should not
- * offer it; this refuses rather than leave the going list wrong.
+ * Removes a planner entry. One linked to a group's plan together also takes
+ * the lifter off that plan's going list, as on the web, so the group does not
+ * keep counting them in.
  */
 export async function deleteScheduledWorkout(userId: string, entry: ScheduledWorkout): Promise<void> {
-  if (entry.sharedPlanId) {
-    throw new Error('Leave a group plan from the website for now.');
+  if (entry.sharedPlanId && entry.groupId) {
+    await removeSelfFromSharedPlan(userId, entry.groupId, entry.sharedPlanId);
   }
 
   await deleteDoc(doc(getDb(), 'users', userId, 'scheduledWorkouts', entry.id));
+}
+
+/** The lifter's planner entries linked to one plan together. */
+export async function findEntriesForSharedPlan(userId: string, sharedPlanId: string): Promise<string[]> {
+  const entries = await getDocs(
+    query(collection(getDb(), 'users', userId, 'scheduledWorkouts'), where('sharedPlanId', '==', sharedPlanId)),
+  );
+  return entries.docs.map((entry) => entry.id);
+}
+
+/** Deletes the planner entries linked to a plan together. Leaves its going list alone. */
+export async function deleteEntriesForSharedPlan(userId: string, sharedPlanId: string): Promise<void> {
+  const ids = await findEntriesForSharedPlan(userId, sharedPlanId);
+  if (ids.length === 0) return;
+
+  const batch = writeBatch(getDb());
+  for (const id of ids) batch.delete(doc(getDb(), 'users', userId, 'scheduledWorkouts', id));
+  await batch.commit();
+}
+
+/** Off a plan together's going list. Best-effort: the plan may be gone, or they already left. */
+export async function removeSelfFromSharedPlan(userId: string, groupId: string, planId: string): Promise<void> {
+  try {
+    await updateDoc(doc(getDb(), 'groups', groupId, 'plans', planId), {
+      going: arrayRemove(userId),
+      [`goingAt.${userId}`]: deleteField(),
+    });
+  } catch {
+    // Nothing to undo.
+  }
 }
 
 /** Saves a new template and answers with its id. Rejects one the rules would refuse. */

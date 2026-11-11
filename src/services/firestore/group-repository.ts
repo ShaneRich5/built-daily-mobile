@@ -45,6 +45,7 @@ import {
   type GroupKind,
   type GroupMember,
   type GroupMembership,
+  type SharedPlan,
 } from '@/types/group';
 import type { WeeklyGoalTarget } from '@/types/progress';
 
@@ -382,6 +383,7 @@ export async function refreshInvitePreview(
   user: GroupUser,
   group: Group,
   members: readonly GroupMember[],
+  plans: readonly SharedPlan[] = [],
 ): Promise<void> {
   try {
     const ref = doc(getDb(), 'invitePreviews', group.inviteCode);
@@ -392,6 +394,7 @@ export async function refreshInvitePreview(
       members,
       inviterName: displayNameFromAuth(user),
       previous,
+      plans,
       todayKey: dateKey(now),
       now,
     });

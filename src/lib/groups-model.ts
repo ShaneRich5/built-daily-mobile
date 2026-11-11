@@ -1,6 +1,25 @@
-import { addDays, dateKey, monthDayLabel, startOfWeek, weekdayShort } from '@/lib/date-keys';
+import { addDays, dateFromKey, dateKey, monthDayLabel, startOfWeek, weekdayShort } from '@/lib/date-keys';
+import { findCatalogExercise } from '@/lib/exercise-catalog';
+import { timeLabel } from '@/lib/session/session-summary';
+import { STARTER_TEMPLATES } from '@/lib/starter-templates';
 import { effectiveStreak } from '@/lib/workout-signals';
-import { GROUP_LIMITS, type Group, type GroupMember, type InvitePreview } from '@/types/group';
+import {
+  GROUP_LIMITS,
+  type Group,
+  type GroupMember,
+  type InvitePreview,
+  type InvitePreviewPlan,
+  SHARED_PLAN_LIMITS,
+  type SharedPlan,
+  type SharedPlanExercise,
+} from '@/types/group';
+import type { WorkoutPlan } from '@/types/workout';
+
+const WEEKDAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function weekdayLong(key: string): string {
+  return WEEKDAYS_LONG[dateFromKey(key)?.getDay() ?? 0];
+}
 
 /**
  * Groups, pure: who trained, who plans to, and how a group reads. Ported from
@@ -243,14 +262,15 @@ const MAX_PREVIEW_PLANS = 10;
 
 /**
  * What a signed-out visitor with the link may see: first names and counts,
- * and plans already shared by link that are still ahead. Mobile has no plans
- * together yet, so it only carries forward the ones the web put there.
+ * and the plans together still ahead.
  */
 export function buildInvitePreview(input: {
   group: Group;
   members: readonly GroupMember[];
   inviterName: string;
   previous: InvitePreview | null;
+  /** The group's plans together still ahead. */
+  plans?: readonly SharedPlan[];
   todayKey: string;
   now: Date;
 }): InvitePreview {
@@ -261,10 +281,23 @@ export function buildInvitePreview(input: {
     0,
   );
 
-  const kept = Object.entries(
-    input.previous?.groupId === input.group.id ? input.previous.plans : {},
-  )
-    .filter(([, plan]) => plan.dateKey >= input.todayKey)
+  const names = new Map(input.members.map((member) => [member.uid, firstName(member.displayName)]));
+  // Plans already shared by link that are still ahead, then today's view of the current ones.
+  const merged = new Map<string, InvitePreviewPlan>(
+    Object.entries(input.previous?.groupId === input.group.id ? input.previous.plans : {}).filter(
+      ([, plan]) => plan.dateKey >= input.todayKey,
+    ),
+  );
+  for (const plan of input.plans ?? []) {
+    merged.set(plan.id, {
+      dateKey: plan.dateKey,
+      time: plan.time,
+      where: plan.where,
+      label: plan.label,
+      goingFirstNames: plan.going.map((uid) => names.get(uid)).filter((name): name is string => Boolean(name)),
+    });
+  }
+  const kept = [...merged.entries()]
     .sort(([, a], [, b]) => a.dateKey.localeCompare(b.dateKey))
     .slice(0, MAX_PREVIEW_PLANS);
 
@@ -281,4 +314,140 @@ export function buildInvitePreview(input: {
     plans: Object.fromEntries(kept),
     updatedAt: input.now,
   };
+}
+
+// ── Plans together ───────────────────────────────────────────────────────
+
+/** Today and the six days after, for "Coming up together" and the day picker. */
+export function nextSevenDays(todayKey: string): WeekDay[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const key = addDays(todayKey, i);
+    return {
+      dateKey: key,
+      letter: LETTERS[dateFromKey(key)?.getDay() ?? 0],
+      short: weekdayShort(key),
+      dayOfMonth: Number(key.slice(8, 10)),
+      isToday: i === 0,
+    };
+  });
+}
+
+/** "6:30 AM" from "06:30"; null for anytime. */
+export function formatPlanTime(time: string | null): string | null {
+  return time ? timeLabel(time) : null;
+}
+
+export type PlanRow = {
+  id: string;
+  groupId: string;
+  dateKey: string;
+  weekday: string;
+  dayOfMonth: number;
+  /** "Leg day · Priya, you" / "Thu · Leg day with Priya" */
+  title: string;
+  /** "Morning Crew · 6:30 AM" / "6:30 AM · Priya and you so far" */
+  meta: string;
+  going: boolean;
+  /** "Join Priya for Leg day Thursday" */
+  joinLabel: string;
+};
+
+/** Names going, others first, "you" last. */
+function goingNames(plan: SharedPlan, members: readonly GroupMember[], myUid: string | null): string[] {
+  const names = new Map(members.map((member) => [member.uid, firstName(member.displayName)]));
+  const others = plan.going.filter((uid) => uid !== myUid).map((uid) => names.get(uid) ?? 'Someone');
+  return myUid !== null && plan.going.includes(myUid) ? [...others, 'you'] : others;
+}
+
+function joinLabel(plan: SharedPlan, others: readonly string[]): string {
+  const who = others.length > 0 ? joinNames(others, 2) : 'the group';
+  return `Join ${who} for ${plan.label} ${weekdayLong(plan.dateKey)}`;
+}
+
+/** A row in "Coming up together" on the Groups tab: the meta is group · time. */
+export function buildComingUpRow(
+  plan: SharedPlan,
+  groupName: string,
+  members: readonly GroupMember[],
+  myUid: string | null,
+): PlanRow {
+  const who = goingNames(plan, members, myUid);
+  return {
+    id: plan.id,
+    groupId: plan.groupId,
+    dateKey: plan.dateKey,
+    weekday: weekdayShort(plan.dateKey),
+    dayOfMonth: Number(plan.dateKey.slice(8, 10)),
+    title: who.length > 0 ? `${plan.label} · ${who.join(', ')}` : plan.label,
+    meta: [groupName, formatPlanTime(plan.time)].filter(Boolean).join(' · '),
+    going: myUid !== null && plan.going.includes(myUid),
+    joinLabel: joinLabel(plan, who.filter((name) => name !== 'you')),
+  };
+}
+
+/** A row in "Plans together" on a group: "Thu · Leg day with Priya", "6:30 AM · Priya and you so far". */
+export function buildGroupPlanRow(plan: SharedPlan, members: readonly GroupMember[], myUid: string | null): PlanRow {
+  const who = goingNames(plan, members, myUid);
+  const others = who.filter((name) => name !== 'you');
+  return {
+    id: plan.id,
+    groupId: plan.groupId,
+    dateKey: plan.dateKey,
+    weekday: weekdayShort(plan.dateKey),
+    dayOfMonth: Number(plan.dateKey.slice(8, 10)),
+    title: `${weekdayShort(plan.dateKey)} · ${plan.label}${others.length > 0 ? ` with ${joinNames(others, 2)}` : ''}`,
+    meta: `${formatPlanTime(plan.time) ?? 'Anytime'} · ${who.length > 0 ? `${joinNames(who)} so far` : 'No one yet'}`,
+    going: myUid !== null && plan.going.includes(myUid),
+    joinLabel: joinLabel(plan, others),
+  };
+}
+
+/** For the day picker: how many others already train or plan on each day. */
+export function crewCountsByDay(
+  members: readonly GroupMember[],
+  days: readonly WeekDay[],
+  myUid: string | null,
+): Record<string, number> {
+  return Object.fromEntries(
+    days.map((day) => [
+      day.dateKey,
+      members.filter(
+        (member) =>
+          member.uid !== myUid && (trainedDaySet(member).has(day.dateKey) || memberPlansOn(member, day.dateKey)),
+      ).length,
+    ]),
+  );
+}
+
+/** "Planned it" / "Said I'm in today" / "… yesterday" / "… Mon". */
+export function goingDetail(at: Date | undefined, isCreator: boolean, todayKey: string): string {
+  if (isCreator) return 'Planned it';
+  if (!at) return 'Going';
+  const key = dateKey(at);
+  if (key === todayKey) return 'Said I’m in today';
+  if (key === addDays(todayKey, -1)) return 'Said I’m in yesterday';
+  return `Said I’m in ${weekdayShort(key)}`;
+}
+
+export type PlanTemplateOption = { id: string; name: string; exercises: SharedPlanExercise[] };
+
+/** The plan sheet's workout chips: the lifter's templates, then starters. Names and set counts only. */
+export function planTemplateOptions(plans: readonly WorkoutPlan[], limit = 6): PlanTemplateOption[] {
+  const mine = plans
+    .filter((plan) => plan.lines.length > 0)
+    .map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+      exercises: plan.lines.slice(0, SHARED_PLAN_LIMITS.exercises).map((line) => ({
+        id: line.exerciseId,
+        name: line.nameSnapshot,
+        sets: line.targetSets && line.targetSets > 0 ? line.targetSets : null,
+      })),
+    }));
+  const starters = STARTER_TEMPLATES.map((starter) => ({
+    id: starter.id,
+    name: starter.name,
+    exercises: starter.exerciseIds.map((id) => ({ id, name: findCatalogExercise(id)?.name ?? id, sets: null })),
+  }));
+  return [...mine, ...starters].slice(0, limit);
 }

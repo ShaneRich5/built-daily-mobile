@@ -67,12 +67,22 @@ export function PlannerScreen() {
   };
 
   const remove = async (card: BoardCard) => {
-    const ok = await confirm({
-      title: `Delete ${card.title}?`,
-      message: 'It comes off the planner. Workouts you logged are not affected.',
-      confirmLabel: 'Delete',
-      destructive: true,
-    });
+    const shared = Boolean(card.entry.sharedPlanId);
+    const ok = await confirm(
+      shared
+        ? {
+            title: `Can’t make ${card.title}?`,
+            message: 'It comes off your planner, and the group sees you’re not going.',
+            confirmLabel: 'Can’t make it',
+            destructive: true,
+          }
+        : {
+            title: `Delete ${card.title}?`,
+            message: 'It comes off the planner. Workouts you logged are not affected.',
+            confirmLabel: 'Delete',
+            destructive: true,
+          },
+    );
     if (ok && (await actions.remove(card.entry))) closePanel();
   };
 
