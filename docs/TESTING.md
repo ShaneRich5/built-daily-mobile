@@ -45,7 +45,7 @@ one rather than assuming the app is broken.
   with anything still in progress pinned to the top.
 - **Opening a finished workout** to see a summary: how many exercises and
   sets, the weight you moved, each set you logged, and a body chart of the
-  muscles it worked.
+  muscles it worked. A lift that beat everything before it gets a PR pill.
 - **Starting a workout**, either empty or from one of your saved plans.
 - **Logging a workout** one exercise at a time. The exercise you're on is open;
   tick each set as you do it. An empty set shows last time's numbers in grey,
@@ -72,6 +72,11 @@ one rather than assuming the app is broken.
   exercises, and how many sets each.
 - **First-run setup** for a new account: a weekly goal and your first week's
   workouts. You can skip it.
+- **Progress** (a tab): this week against your goals, active days (workouts
+  or activities), your best lifts, body weight and milestones.
+- **Goals**: workouts a week, active days a week and an optional goal weight,
+  from the Goals button on Progress.
+- **Body weight**: log today's weigh-in on Progress and see the trend.
 - **The exercise catalog** (in the account menu).
 
 ## 4. What's still website-only
@@ -79,8 +84,8 @@ one rather than assuming the app is broken.
 Not bugs — these simply haven't been built on mobile yet:
 
 - Opening, editing or deleting an activity you logged.
-- Changing your weekly goal after first-run setup, the Progress page and
-  body weight.
+- The old Progress layout's year heatmap, and a list of past weigh-ins
+  (only the latest and the trend show here).
 - Groups, invites and public profiles.
 - The planner's month view (the phone shows a week at a time).
 - Leaving a group's shared plan.

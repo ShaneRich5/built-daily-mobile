@@ -2,7 +2,7 @@ import { TabList, Tabs, TabSlot, TabTrigger, type TabTriggerSlotProps } from 'ex
 import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { CalendarIcon, HouseIcon, type LucideIcon } from '@/components/ui/icons';
+import { CalendarIcon, ChartLineIcon, HouseIcon, type LucideIcon } from '@/components/ui/icons';
 import { FontFamily, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -26,6 +26,9 @@ export default function AppTabs() {
         </TabTrigger>
         <TabTrigger name="planner" href="/planner" asChild>
           <TabButton icon={CalendarIcon}>Planner</TabButton>
+        </TabTrigger>
+        <TabTrigger name="progress" href="/progress" asChild>
+          <TabButton icon={ChartLineIcon}>Progress</TabButton>
         </TabTrigger>
       </TabList>
     </Tabs>

@@ -46,6 +46,7 @@ export { default as PlusIcon } from 'lucide-react-native/icons/plus';
 export { default as SearchIcon } from 'lucide-react-native/icons/search';
 export { default as SettingsIcon } from 'lucide-react-native/icons/settings';
 export { default as SlidersHorizontalIcon } from 'lucide-react-native/icons/sliders-horizontal';
+export { default as TargetIcon } from 'lucide-react-native/icons/target';
 export { default as Trash2Icon } from 'lucide-react-native/icons/trash-2';
 export { default as XIcon } from 'lucide-react-native/icons/x';
 

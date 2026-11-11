@@ -1,14 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Chips } from '@/components/ui/chips';
 import { Screen } from '@/components/ui/screen';
-import { Radius } from '@/constants/theme';
 import { useSession } from '@/contexts/session';
-import { useTheme } from '@/hooks/use-theme';
 import { dateKey } from '@/lib/date-keys';
 import {
   goalLabel,
@@ -182,46 +181,6 @@ export function OnboardingScreen() {
   );
 }
 
-function Chips({
-  options,
-  selected,
-  multi = false,
-  onPress,
-}: {
-  options: readonly { id: string; label: string }[];
-  selected: readonly string[];
-  multi?: boolean;
-  onPress: (id: string) => void;
-}) {
-  const theme = useTheme();
-
-  return (
-    <View style={styles.chips}>
-      {options.map((option) => {
-        const on = selected.includes(option.id);
-
-        return (
-          <Pressable
-            key={option.id}
-            accessibilityRole={multi ? 'checkbox' : 'radio'}
-            accessibilityState={{ checked: on }}
-            onPress={() => onPress(option.id)}
-            style={[
-              styles.chip,
-              on
-                ? { backgroundColor: theme.inverse, borderColor: theme.inverse }
-                : { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}>
-            <ThemedText type="link" style={{ color: on ? theme.onInverse : theme.textBody }}>
-              {option.label}
-            </ThemedText>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   heading: {
     gap: 4,
@@ -231,18 +190,6 @@ const styles = StyleSheet.create({
   },
   day: {
     gap: 8,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: 16,
   },
   footer: {
     gap: 4,

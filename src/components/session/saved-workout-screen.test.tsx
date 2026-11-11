@@ -5,7 +5,11 @@ import { SavedWorkoutScreen } from '@/components/session/saved-workout-screen';
 import { useSession } from '@/contexts/session';
 import { bench, dips, line, log, session } from '@/lib/session/session-test-helpers';
 import { confirm } from '@/services/confirm';
-import { deleteSession, updateSession } from '@/services/firestore/workout-repository';
+import {
+  deleteSession,
+  subscribeToRecentSessions,
+  updateSession,
+} from '@/services/firestore/workout-repository';
 
 jest.mock('@/contexts/session');
 jest.mock('@/services/firestore/workout-repository');
@@ -132,5 +136,26 @@ describe('SavedWorkoutScreen', () => {
     await userEvent.press(screen.getByRole('button', { name: 'Move back to in progress' }));
 
     expect(await screen.findByText(/Could not reopen this workout/)).toBeTruthy();
+  });
+
+  it('marks the lifts that beat everything before them', async () => {
+    const earlier = session('earlier', [line(bench, [log({ weight: 135, reps: 5, done: true })])], {
+      workoutDate: '2026-11-03',
+    });
+    jest.mocked(subscribeToRecentSessions).mockImplementation((_uid, { onData }) => {
+      onData([pushDay(), earlier]);
+      return () => {};
+    });
+
+    await render(<SavedWorkoutScreen session={pushDay()} />);
+
+    expect(screen.getByText('PR · 145 × 6')).toBeTruthy();
+  });
+
+  it('marks nothing until the earlier workouts have loaded', async () => {
+    jest.mocked(subscribeToRecentSessions).mockImplementation(() => () => {});
+    await render(<SavedWorkoutScreen session={pushDay()} />);
+
+    expect(screen.queryByText(/^PR ·/)).toBeNull();
   });
 });

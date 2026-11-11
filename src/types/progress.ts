@@ -16,6 +16,17 @@ export type ProgressSettings = {
   goalWeightLbs: number | null;
 };
 
+/** One weigh-in, `users/{uid}/bodyWeight/{id}`. Pounds, as every weight in the app is. */
+export type BodyWeightEntry = {
+  id: string;
+  dateKey: string;
+  weightLbs: number;
+  createdAt: Date;
+};
+
+/** The heaviest body weight or goal weight the Firestore rules accept. */
+export const MAX_BODY_WEIGHT_LBS = 1000;
+
 /** What a lifter who has never set a goal is treated as having. */
 export const DEFAULT_PROGRESS_SETTINGS: ProgressSettings = {
   weeklyGoal: 3,
