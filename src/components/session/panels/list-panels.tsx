@@ -26,14 +26,25 @@ import {
 // The short, list-shaped sheets of the workout screen. Each is a `SheetFrame`
 // to put inside the screen's one `SheetHost`.
 
-export type MenuAction = Pick<ActionRowProps, 'label' | 'icon' | 'destructive' | 'disabled'> & {
+export type MenuAction = Pick<
+  ActionRowProps,
+  'label' | 'detail' | 'icon' | 'trailing' | 'destructive' | 'disabled'
+> & {
   onPress: () => void;
 };
 
-/** The "More actions" menu: a short list of things to do with this workout. */
-export function MenuPanel({ title, actions }: { title: string; actions: readonly MenuAction[] }) {
+/** A short list of things to do: a workout's "More actions", the account menu. */
+export function MenuPanel({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: string;
+  actions: readonly MenuAction[];
+}) {
   return (
-    <SheetFrame title={title} flush>
+    <SheetFrame title={title} subtitle={subtitle} flush>
       <View style={styles.rows}>
         {actions.map((action) => (
           <ActionRow key={action.label} {...action} />

@@ -30,9 +30,19 @@ one rather than assuming the app is broken.
 
 ## 3. What works on your phone today
 
-- **Signing in and out** with an email and password.
-- **Your recent workouts** — the 30 most recent, with anything still in
-  progress pinned to the top.
+- **Signing in and out** with an email and password. Sign out is in the
+  account menu: the round button with your initial at the top of Home.
+- **Home**: one big button starts the next workout in your rotation (or
+  today's planned one); the arrow beside it lists your other templates. A
+  workout in progress shows a Resume card instead.
+- **This week**: workouts against your weekly goal, your goal streak, the
+  days of the week, and a chart of the last 16 weeks. Tap a past square to see
+  what you logged that day; tap a planned day to start it.
+- **A planned workout you missed** shows a card on Home: do it today, move it
+  to another day, or skip it.
+- **Logging an activity** — a walk, a ride, a game — from Home.
+- **Your workout history** — "See all" under Recent, or the account menu,
+  with anything still in progress pinned to the top.
 - **Opening a finished workout** to see a summary: how many exercises and
   sets, the weight you moved, each set you logged, and a body chart of the
   muscles it worked.
@@ -53,17 +63,19 @@ one rather than assuming the app is broken.
 - **Finishing a workout**, or deleting one.
 - **Editing a finished workout** you logged anywhere, including on the web: its
   name, date, time, note, exercises and sets. Or moving it back to in progress.
-- **Browsing your plans** and **the exercise catalog**.
+- **Browsing your plans** and **the exercise catalog** (in the account menu).
 
 ## 4. What's still website-only
 
 Not bugs — these simply haven't been built on mobile yet:
 
 - Creating or editing plans (you can run them on your phone, not change them).
-- Activities like walks and bike rides.
-- Progress charts, body weight, and your weekly goal.
+- Opening, editing or deleting an activity you logged.
+- Changing your weekly goal (Home uses the one set on the website), the
+  Progress page and body weight.
 - Groups, invites and public profiles.
-- The planner / scheduled workouts.
+- The planner itself. On your phone you can start a planned workout and
+  catch up on a missed one, but not plan new ones.
 - Google sign-in.
 
 ## 5. Rough edges to expect

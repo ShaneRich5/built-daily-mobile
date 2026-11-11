@@ -1,3 +1,4 @@
+import { EXERCISE_CATALOG } from '@/lib/exercise-catalog';
 import {
   blankSession,
   defaultSessionTitle,
@@ -5,6 +6,7 @@ import {
   localWorkoutTime,
   newSessionLine,
   sessionFromPlan,
+  sessionFromPlanned,
 } from '@/lib/session-start';
 import type { PlanLine, WorkoutPlan } from '@/types/workout';
 
@@ -95,6 +97,47 @@ describe('blankSession', () => {
 
   it('falls back to the default title for a blank one', () => {
     expect(blankSession(NOW, '   ').title).toBe('Workout on 2026-09-14');
+  });
+});
+
+describe('sessionFromPlanned', () => {
+  const known = EXERCISE_CATALOG.slice(0, 2);
+  const planned = {
+    label: 'Leg day',
+    planId: 'starter-legs',
+    exerciseIds: [known[0].id, 'custom-gone', known[1].id],
+  };
+
+  it('opens each planned exercise with one empty set, under the plan label', () => {
+    const session = sessionFromPlanned(planned, NOW, idFactory());
+
+    expect(session.title).toBe('Leg day');
+    expect(session.status).toBe('in_progress');
+    expect(session.lines.map((line) => line.nameSnapshot)).toEqual([known[0].name, known[1].name]);
+    expect(session.lines.every((line) => line.sets.length === 1)).toBe(true);
+    expect(session.exerciseCount).toBe(2);
+  });
+
+  // There is no name to show for an id the catalog does not have.
+  it('leaves out an exercise it cannot look up', () => {
+    expect(sessionFromPlanned(planned, NOW, idFactory()).lines).toHaveLength(2);
+  });
+
+  // A starter id names a built-in plan, not one of the lifter's documents.
+  it('does not record a starter plan as the template', () => {
+    expect(sessionFromPlanned(planned, NOW, idFactory()).planId).toBeNull();
+  });
+
+  it('records a real template id', () => {
+    expect(sessionFromPlanned({ ...planned, planId: 'plan-1' }, NOW, idFactory()).planId).toBe(
+      'plan-1',
+    );
+  });
+
+  it('names an unlabelled plan after the day', () => {
+    expect(sessionFromPlanned({ ...planned, label: '  ' }, NOW, idFactory()).title).toBe(
+      'Workout on 2026-09-14',
+    );
   });
 });
 
