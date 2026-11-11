@@ -95,7 +95,7 @@ export function HomeScreen() {
     {
       label: 'Manage templates',
       icon: ListIcon,
-      onPress: () => fromMenu(() => router.push('/plans')),
+      onPress: () => fromMenu(() => router.push('/planner')),
     },
   ];
 
@@ -187,7 +187,7 @@ export function HomeScreen() {
           ) : null}
 
           <View style={styles.section}>
-            <SectionLabel action={{ label: 'Plans', onPress: () => router.push('/plans') }}>
+            <SectionLabel action={{ label: 'Planner', onPress: () => router.push('/planner') }}>
               This week
             </SectionLabel>
             <WeekCard

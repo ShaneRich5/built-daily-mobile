@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   limit,
   onSnapshot,
   orderBy,
@@ -166,4 +167,10 @@ export function subscribeToProgressSettings(
     (snapshot) => onData(toProgressSettings(snapshot.data())),
     onError,
   );
+}
+
+/** The lifter's goals, read once. The defaults when there is no document yet. */
+export async function getProgressSettings(userId: string): Promise<ProgressSettings> {
+  const snapshot = await getDoc(doc(getDb(), 'users', userId, 'settings', 'progress'));
+  return toProgressSettings(snapshot.data());
 }
