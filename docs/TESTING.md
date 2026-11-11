@@ -63,19 +63,27 @@ one rather than assuming the app is broken.
 - **Finishing a workout**, or deleting one.
 - **Editing a finished workout** you logged anywhere, including on the web: its
   name, date, time, note, exercises and sets. Or moving it back to in progress.
-- **Browsing your plans** and **the exercise catalog** (in the account menu).
+- **The planner** (a tab): your week, one row per day. Tap a plan's handle,
+  then tap a day to move it there (or swap with what's planned). Tap a plan
+  for more: start it, push the rest of the week back, move it to
+  Unscheduled, skip it or delete it. The + on a day plans a workout there.
+- **Unscheduled**: plans with no day yet, at the top of the planner.
+- **Templates**: make, edit and delete them from the planner — a name,
+  exercises, and how many sets each.
+- **First-run setup** for a new account: a weekly goal and your first week's
+  workouts. You can skip it.
+- **The exercise catalog** (in the account menu).
 
 ## 4. What's still website-only
 
 Not bugs — these simply haven't been built on mobile yet:
 
-- Creating or editing plans (you can run them on your phone, not change them).
 - Opening, editing or deleting an activity you logged.
-- Changing your weekly goal (Home uses the one set on the website), the
-  Progress page and body weight.
+- Changing your weekly goal after first-run setup, the Progress page and
+  body weight.
 - Groups, invites and public profiles.
-- The planner itself. On your phone you can start a planned workout and
-  catch up on a missed one, but not plan new ones.
+- The planner's month view (the phone shows a week at a time).
+- Leaving a group's shared plan.
 - Google sign-in.
 
 ## 5. Rough edges to expect

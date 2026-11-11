@@ -35,9 +35,9 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="plans">
-        <NativeTabs.Trigger.Label>Plans</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="list.bullet.rectangle" md="list_alt" />
+      <NativeTabs.Trigger name="planner">
+        <NativeTabs.Trigger.Label>Planner</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="calendar" md="calendar_month" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );
