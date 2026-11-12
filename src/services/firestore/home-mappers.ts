@@ -159,6 +159,32 @@ export function fromNewActivity(input: NewActivity, now: Date): DocData | null {
   };
 }
 
+/** The fields an edit may change; `visibility`, `source`, the timestamps and `createdAt` stay as they were. */
+const EDITABLE_ACTIVITY_FIELDS = [
+  'activityTypeId',
+  'activityDate',
+  'activityTime',
+  'durationMin',
+  'distanceMiles',
+  'locationName',
+  'notes',
+] as const;
+
+/**
+ * An edited activity → the patch to apply, or null when it is not something
+ * that can be saved. Cleaned exactly as a new one is, and only the fields the
+ * form edits are written, plus `updatedAt`, so whatever else the document
+ * holds is left alone.
+ */
+export function fromActivityEdit(input: NewActivity, now: Date): DocData | null {
+  const full = fromNewActivity(input, now);
+  if (!full) return null;
+
+  const patch: DocData = { updatedAt: now };
+  for (const field of EDITABLE_ACTIVITY_FIELDS) patch[field] = full[field];
+  return patch;
+}
+
 /**
  * The progress settings document → settings. A missing document, or a value
  * outside what the app offers, reads as the default rather than as an error:

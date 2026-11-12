@@ -1,4 +1,5 @@
 import {
+  fromActivityEdit,
   fromNewActivity,
   toActivity,
   toProgressSettings,
@@ -192,6 +193,50 @@ describe('fromNewActivity', () => {
       distanceMiles: 1.75,
       locationName: 'Park',
     });
+  });
+});
+
+describe('fromActivityEdit', () => {
+  const now = new Date('2026-11-11T12:00:00Z');
+  const input: NewActivity = {
+    activityTypeId: 'tennis',
+    activityDate: '2026-11-09',
+    activityTime: '',
+    durationMin: 60,
+    distanceMiles: 3,
+    locationName: null,
+    notes: ' Doubles ',
+  };
+
+  // Leaving out createdAt, visibility, source and the timer fields keeps what the document already has.
+  it('writes only what the form edits, plus when it changed', () => {
+    expect(Object.keys(fromActivityEdit(input, now) ?? {}).sort()).toEqual([
+      'activityDate',
+      'activityTime',
+      'activityTypeId',
+      'distanceMiles',
+      'durationMin',
+      'locationName',
+      'notes',
+      'updatedAt',
+    ]);
+  });
+
+  it('cleans the edit as it would a new activity', () => {
+    expect(fromActivityEdit(input, now)).toEqual({
+      activityTypeId: 'tennis',
+      activityDate: '2026-11-09',
+      activityTime: null,
+      durationMin: 60,
+      distanceMiles: null,
+      locationName: null,
+      notes: 'Doubles',
+      updatedAt: now,
+    });
+  });
+
+  it('refuses an edit that could not be logged', () => {
+    expect(fromActivityEdit({ ...input, activityDate: 'yesterday' }, now)).toBeNull();
   });
 });
 

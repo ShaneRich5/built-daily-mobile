@@ -125,6 +125,7 @@ export function useHomeData() {
     isLoading: Boolean(uid) && raw.sessions === null,
     error: raw.error,
     plans,
+    activities,
     templates,
     inProgress: pickInProgress(sessions),
     planned: pickNextPlanned(entries, todayKey),

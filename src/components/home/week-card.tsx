@@ -27,6 +27,8 @@ type WeekCardProps = {
   onStartPlanned: (day: HomeWeekDay) => void;
   /** A logged workout was tapped in the day list under the chart. */
   onOpenWorkout: (sessionId: string) => void;
+  /** A logged activity was tapped there. Without it, activities are listed but not tappable. */
+  onOpenActivity?: (activityId: string) => void;
 };
 
 /** This week's goal and streak, the Sunday–Saturday days, and the last 16 weeks. */
@@ -37,12 +39,17 @@ export function WeekCard({
   consistency,
   onStartPlanned,
   onOpenWorkout,
+  onOpenActivity,
 }: WeekCardProps) {
   return (
     <Card style={styles.card}>
       <WeekGoal todayKey={todayKey} goal={goal} streak={consistency.streak} />
       <WeekDays days={days} onStartPlanned={onStartPlanned} />
-      <ConsistencyChart consistency={consistency} onOpenWorkout={onOpenWorkout} />
+      <ConsistencyChart
+        consistency={consistency}
+        onOpenWorkout={onOpenWorkout}
+        onOpenActivity={onOpenActivity}
+      />
     </Card>
   );
 }
@@ -177,9 +184,11 @@ function isTappable(day: HomeChartDay): boolean {
 export function ConsistencyChart({
   consistency,
   onOpenWorkout,
+  onOpenActivity,
 }: {
   consistency: HomeConsistency;
   onOpenWorkout: (sessionId: string) => void;
+  onOpenActivity?: (activityId: string) => void;
 }) {
   const theme = useTheme();
   const { weeks, longest, label, dayItems } = consistency;
@@ -238,6 +247,7 @@ export function ConsistencyChart({
               return isTappable(day) ? (
                 <Pressable
                   key={key}
+                  testID={`chart-day-${key}`}
                   // The squares sit 4px apart; any more slop and they overlap.
                   hitSlop={2}
                   onPress={() => setSelectedKey(selected ? null : key)}>
@@ -257,6 +267,7 @@ export function ConsistencyChart({
           dateKey={selectedKey}
           items={dayItems[selectedKey] ?? []}
           onOpenWorkout={onOpenWorkout}
+          onOpenActivity={onOpenActivity}
         />
       ) : null}
 
@@ -274,12 +285,16 @@ function DayItems({
   dateKey,
   items,
   onOpenWorkout,
+  onOpenActivity,
 }: {
   dateKey: string;
   items: readonly HomeRecentItem[];
   onOpenWorkout: (sessionId: string) => void;
+  onOpenActivity?: (activityId: string) => void;
 }) {
   const theme = useTheme();
+  const open = (item: HomeRecentItem) =>
+    item.kind === 'workout' ? () => onOpenWorkout(item.id) : onOpenActivity && (() => onOpenActivity(item.id));
 
   return (
     <View style={[styles.dayItems, { backgroundColor: theme.background }]}>
@@ -290,14 +305,15 @@ function DayItems({
       {items.length === 0 ? (
         <ThemedText type="caption">Nothing logged. Rest days count too.</ThemedText>
       ) : (
-        items.map((item) =>
-          item.kind === 'workout' ? (
+        items.map((item) => {
+          const onPress = open(item);
+          return onPress ? (
             <Pressable
               key={item.id}
               accessibilityRole="button"
               accessibilityLabel={`${item.title}, ${item.meta}`}
               hitSlop={8}
-              onPress={() => onOpenWorkout(item.id)}>
+              onPress={onPress}>
               <ThemedText type="link" themeColor="text">
                 {item.title} <ThemedText type="caption">· {item.meta}</ThemedText>
               </ThemedText>
@@ -306,8 +322,8 @@ function DayItems({
             <ThemedText key={item.id} type="link" themeColor="text">
               {item.title} <ThemedText type="caption">· {item.meta}</ThemedText>
             </ThemedText>
-          ),
-        )
+          );
+        })
       )}
     </View>
   );
