@@ -26,6 +26,19 @@ export type SetLog = {
   done?: boolean;
 };
 
+/** "plan" = doing it today; "maybe" = only if there's time. */
+export type LineSection = 'plan' | 'maybe';
+
+/**
+ * An exercise that can stand in for a line when its machine is taken.
+ * Snapshotted, like the line itself, so a custom move still has a name.
+ */
+export type AlternateExercise = {
+  exerciseId: string;
+  nameSnapshot: string;
+  metric: ExerciseMetric;
+};
+
 /** One exercise within a session, embedded in the session document. */
 export type SessionLine = {
   lineId: string;
@@ -34,6 +47,10 @@ export type SessionLine = {
   nameSnapshot: string;
   metric: ExerciseMetric;
   sets: SetLog[];
+  /** Absent means "plan". Only ever stored as "maybe". */
+  section?: LineSection;
+  /** Absent means none. */
+  alternates?: AlternateExercise[];
 };
 
 /** `users/{uid}/sessions/{sessionId}` */
@@ -80,6 +97,10 @@ export type PlanLine = {
   metric: ExerciseMetric;
   targetSets: number | null;
   notes: string | null;
+  /** Absent means "plan". Only ever stored as "maybe". */
+  section?: LineSection;
+  /** Absent means none. */
+  alternates?: AlternateExercise[];
 };
 
 /**

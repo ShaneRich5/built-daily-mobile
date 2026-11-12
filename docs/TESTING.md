@@ -30,41 +30,96 @@ one rather than assuming the app is broken.
 
 ## 3. What works on your phone today
 
-- **Signing in and out** with an email and password.
-- **Your recent workouts** — the 30 most recent, with anything still in
-  progress pinned to the top.
-- **Opening a workout** to see every exercise, every set, and a body chart of
-  the muscles it worked.
+- **Signing in and out** with an email and password. Sign out is in the
+  account menu: the round button with your initial at the top of Home.
+- **Home**: one big button starts the next workout in your rotation (or
+  today's planned one); the arrow beside it lists your other templates. A
+  workout in progress shows a Resume card instead.
+- **This week**: workouts against your weekly goal, your goal streak, the
+  days of the week, and a chart of the last 16 weeks. Tap a past square to see
+  what you logged that day; tap a planned day to start it.
+- **A planned workout you missed** shows a card on Home: do it today, move it
+  to another day, or skip it.
+- **Logging an activity** — a walk, a ride, a game — from Home.
+- **Your workout history** — "See all" under Recent, or the account menu,
+  with anything still in progress pinned to the top.
+- **Opening a finished workout** to see a summary: how many exercises and
+  sets, the weight you moved, each set you logged, and a body chart of the
+  muscles it worked. A lift that beat everything before it gets a PR pill.
 - **Starting a workout**, either empty or from one of your saved plans.
-- **Adding exercises** from the catalog, or by name if the catalog doesn't have
-  the move.
-- **Logging sets** — weight, reps, hold time, distance — plus notes on a set, on
-  an exercise, or on the whole workout.
-- **Finishing a workout**, which completes it and records how long it took.
-- **Editing a workout** you logged anywhere, including on the web: its title,
-  date, time, note, exercises and sets.
-- **Browsing your plans** and **the exercise catalog**.
+- **Logging a workout** one exercise at a time. The exercise you're on is open;
+  tick each set as you do it. An empty set shows last time's numbers in grey,
+  and ticking it without typing logs those.
+- **Adding exercises**: search the catalog and pick several at once, tap a
+  "Usually next" suggestion, or add a move of your own by name.
+- **Details for an exercise**: notes on a set or on the exercise, what you did
+  in previous sessions (and "Use these" to start from them), and Swap, Move
+  and Remove.
+- **Maybes**: exercises you'll do only if there's time. They sit under the
+  plan, "Do it" moves one in, and any you skip are left out of the finished
+  workout.
+- **Swapping an exercise** when a machine is taken. The one you swapped out
+  stays one tap away.
+- **Finishing a workout**, or deleting one.
+- **Editing a finished workout** you logged anywhere, including on the web: its
+  name, date, time, note, exercises and sets. Or moving it back to in progress.
+- **The planner** (a tab): your week, one row per day. Tap a plan's handle,
+  then tap a day to move it there (or swap with what's planned). Tap a plan
+  for more: start it, push the rest of the week back, move it to
+  Unscheduled, skip it or delete it. The + on a day plans a workout there.
+- **Unscheduled**: plans with no day yet, at the top of the planner.
+- **Templates**: make, edit and delete them from the planner — a name,
+  exercises, and how many sets each.
+- **First-run setup** for a new account: a weekly goal and your first week's
+  workouts. You can skip it.
+- **Progress** (a tab): this week against your goals, active days (workouts
+  or activities), your best lifts, body weight and milestones.
+- **Goals**: workouts a week, active days a week and an optional goal weight,
+  from the Goals button on Progress.
+- **Body weight**: log today's weigh-in on Progress and see the trend.
+- **Groups** (a tab): start a gym buddy or a group of up to 12, or join one
+  with a code. See everyone's week (days trained and planned, against each
+  person's own goal) and cheer whoever trained today.
+- **Inviting**: a group's code to read out, and Share to send the link. The
+  link opens the website's join page; the code works typed into Groups › Join
+  here. The owner can reset the code, turn a buddy into a group, or delete it.
+- **Your row in your groups stays current**: finishing, editing or deleting a
+  workout, logging an activity, changing your goal or your plans updates what
+  your groups see, a moment later.
+- **Plans together**: plan a workout with a group (a day, maybe a time and
+  place), say "I'm in" to someone else's, or "Can't make it". It goes on your
+  planner either way. On the day, Start turns it into a workout.
+- **Coming up together** on the Groups tab: every group's plans for the next
+  seven days.
+- **The exercise catalog** (in the account menu).
 
 ## 4. What's still website-only
 
 Not bugs — these simply haven't been built on mobile yet:
 
-- Creating or editing plans (you can run them on your phone, not change them).
-- Activities like walks and bike rides.
-- Progress charts, body weight, and your weekly goal.
-- Groups, invites and public profiles.
-- The planner / scheduled workouts.
+- Opening, editing or deleting an activity you logged.
+- The old Progress layout's year heatmap, and a list of past weigh-ins
+  (only the latest and the trend show here).
+- Opening an invite link straight into the app. Links open the website; type
+  the code into Groups › Join instead.
+- Public profiles.
+- The planner's month view (the phone shows a week at a time).
+- Leaving a group's shared plan.
 - Google sign-in.
 
 ## 5. Rough edges to expect
 
 - Weights are in pounds everywhere.
 - Dates and times are typed in, as `2026-09-14` and `18:30`.
-- There's no rest timer yet.
-- A workout's duration is measured from when you started it to when you pressed
-  finish, so it'll look long if you started one and wandered off.
-- Changes save when you press **Save** — leaving a screen without saving loses
-  what you typed on it.
+- There's no rest timer, and a workout's duration isn't recorded.
+- A workout in progress saves by itself a moment after each change. If it
+  can't, "Not saved yet" shows at the top; it tries again on your next change.
+- Editing a **finished** workout is different: nothing is saved until you press
+  **Save changes**, and Cancel throws your edits away.
+- Exercises are reordered with arrows or "Move…", not by dragging.
+- If you change the same workout on the website (or through Claude) while it's
+  open on your phone, the phone doesn't see that change and will overwrite it
+  the next time it saves.
 - The app is a sandbox inside Expo Go, so it may be slower than a real app, and
   it will stop working when the development server does.
 

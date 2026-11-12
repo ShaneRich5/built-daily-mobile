@@ -3,6 +3,7 @@ import {
   isLoggedSet,
   isSetDone,
   lastPerformanceByExercise,
+  performancesByExercise,
   startingSetsFrom,
 } from '@/lib/exercise-history';
 import { EMPTY_SET } from '@/lib/session-edit';
@@ -195,10 +196,50 @@ describe('lastPerformanceByExercise', () => {
   });
 });
 
+describe('performancesByExercise', () => {
+  const done = set({ weight: 135, reps: 8 });
+
+  it('lists every time an exercise was done, newest first', () => {
+    const history = performancesByExercise([
+      session('old', day(10), [line('bench', [done])]),
+      session('new', day(20), [line('bench', [done])]),
+      session('mid', day(15), [line('bench', [done])]),
+    ]);
+
+    expect(history.get('bench')?.map((p) => p.sessionId)).toEqual(['new', 'mid', 'old']);
+  });
+
+  it('carries the day the workout was filed under', () => {
+    const dated = { ...session('a', day(10), [line('bench', [done])]), workoutDate: '2026-09-09' };
+
+    expect(performancesByExercise([dated]).get('bench')?.[0].workoutDate).toBe('2026-09-09');
+  });
+
+  it('leaves out unfinished workouts and the one on screen', () => {
+    const history = performancesByExercise(
+      [
+        session('open', null, [line('bench', [done])], 'in_progress'),
+        session('this', day(20), [line('bench', [done])]),
+        session('past', day(10), [line('bench', [done])]),
+      ],
+      'this',
+    );
+
+    expect(history.get('bench')?.map((p) => p.sessionId)).toEqual(['past']);
+  });
+
+  it('has no entry for an exercise that was added but never logged', () => {
+    expect(performancesByExercise([session('a', day(10), [line('bench', [set()])])]).has('bench')).toBe(
+      false,
+    );
+  });
+});
+
 describe('startingSetsFrom', () => {
   const performance = {
     sessionId: 'a',
     performedAt: day(10),
+    workoutDate: null,
     metric: 'weight_reps' as const,
     sets: [set({ weight: 135, reps: 8, note: 'felt heavy' }), set({ weight: 135, reps: 6 })],
   };

@@ -40,6 +40,12 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
             becomes a tab. Its own layout supplies the headers for the workout
             and its two edit screens. */}
         <Stack.Screen name="session/[id]" />
+        <Stack.Screen name="history" />
+        <Stack.Screen name="exercises" />
+        <Stack.Screen name="templates/[planId]" />
+        <Stack.Screen name="groups/[groupId]/index" />
+        <Stack.Screen name="groups/[groupId]/plans/[planId]" />
+        <Stack.Screen name="onboarding" />
       </Stack.Protected>
 
       <Stack.Protected guard={!user}>

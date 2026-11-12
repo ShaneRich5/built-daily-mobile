@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 
 import {
   type AuthIdentity,
@@ -8,6 +8,7 @@ import {
 } from '@/lib/user-profile';
 import { getDb } from '@/services/firebase';
 import { fromUserProfile, toUserProfile } from '@/services/firestore/user-profile-mapper';
+import type { UserProfile } from '@/types/user-profile';
 
 type SignedInUser = AuthIdentity & { uid: string };
 
@@ -49,4 +50,47 @@ async function writeProfileIfNeeded(user: SignedInUser): Promise<void> {
   );
 
   if (next) await setDoc(ref, fromUserProfile(next), { merge: true });
+}
+
+/**
+ * The lifter's profile, live. Yields null while there is no usable document —
+ * which, just after a first sign-in, is briefly the case until
+ * `ensureUserProfile` has written one.
+ */
+export function subscribeToUserProfile(
+  userId: string,
+  { onData, onError }: { onData: (profile: UserProfile | null) => void; onError: (error: Error) => void },
+): () => void {
+  return onSnapshot(
+    doc(getDb(), 'users', userId),
+    (snapshot) => {
+      const data = snapshot.data();
+      onData(data ? toUserProfile(data) : null);
+    },
+    onError,
+  );
+}
+
+/**
+ * Marks onboarding done — finished or skipped — so neither app shows it again.
+ * The whole profile is written, as the rules require; a profile that somehow
+ * is not there yet is created with it.
+ */
+export async function completeOnboarding(user: SignedInUser): Promise<void> {
+  const ref = doc(getDb(), 'users', user.uid);
+  const snapshot = await getDoc(ref);
+  const data = snapshot.data();
+  const now = new Date();
+
+  const existing =
+    (data ? toUserProfile(data) : null) ??
+    profileAfterSignIn(
+      null,
+      { displayName: displayNameFromAuth(user), timezone: resolveDeviceTimezone() },
+      now,
+    );
+
+  if (!existing) return;
+
+  await setDoc(ref, fromUserProfile({ ...existing, onboardingCompletedAt: now, updatedAt: now }));
 }

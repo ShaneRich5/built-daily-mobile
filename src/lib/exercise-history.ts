@@ -16,6 +16,8 @@ import type { ExerciseMetric, SetLog, WorkoutSession } from '@/types/workout';
 export type ExercisePerformance = {
   sessionId: string;
   performedAt: Date;
+  /** The day the lifter filed it under, when they set one. */
+  workoutDate: string | null;
   metric: ExerciseMetric;
   /** Only the sets that recorded something. */
   sets: SetLog[];
@@ -67,28 +69,55 @@ export function lastPerformanceByExercise(
 ): Map<string, ExercisePerformance> {
   const latest = new Map<string, ExercisePerformance>();
 
-  for (const session of sessions) {
-    if (session.status !== 'completed' || session.id === excludeSessionId) continue;
+  for (const [exerciseId, performances] of performancesByExercise(sessions, excludeSessionId)) {
+    latest.set(exerciseId, performances[0]);
+  }
 
-    const when = performedAt(session);
+  return latest;
+}
 
+/**
+ * Every time each exercise was done within the sessions given, newest first,
+ * keyed by `exerciseId`. The same rules as above: completed workouts only, the
+ * one on screen left out, and only sets that recorded something.
+ *
+ * An exercise that appears twice in one workout contributes both lines, in the
+ * order they were done.
+ */
+export function performancesByExercise(
+  sessions: readonly WorkoutSession[],
+  excludeSessionId?: string,
+): Map<string, ExercisePerformance[]> {
+  const byExercise = new Map<string, ExercisePerformance[]>();
+
+  const newestFirst = sessions
+    .filter((session) => session.status === 'completed' && session.id !== excludeSessionId)
+    .map((session) => ({ session, when: performedAt(session) }))
+    .sort((a, b) => b.when.getTime() - a.when.getTime());
+
+  for (const { session, when } of newestFirst) {
     for (const line of session.lines) {
       const sets = line.sets.filter(isLoggedSet);
       if (sets.length === 0) continue;
 
-      const known = latest.get(line.exerciseId);
-      if (known && known.performedAt >= when) continue;
-
-      latest.set(line.exerciseId, {
+      const performance: ExercisePerformance = {
         sessionId: session.id,
         performedAt: when,
+        workoutDate: session.workoutDate,
         metric: line.metric,
         sets,
-      });
+      };
+
+      const known = byExercise.get(line.exerciseId);
+      if (known) {
+        known.push(performance);
+      } else {
+        byExercise.set(line.exerciseId, [performance]);
+      }
     }
   }
 
-  return latest;
+  return byExercise;
 }
 
 /**

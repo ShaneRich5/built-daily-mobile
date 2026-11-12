@@ -13,7 +13,8 @@ import { useTheme } from '@/hooks/use-theme';
  *
  * The redesign's bar is Home / Planner / Groups / Progress. Those destinations
  * arrive one phase at a time; until each exists, the tabs that already work
- * stay, so the bar never has a dead tab.
+ * stay, so the bar never has a dead tab. The exercise catalog has moved off the
+ * bar and into Home's account menu.
  */
 export default function AppTabs() {
   const theme = useTheme();
@@ -34,14 +35,19 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="plans">
-        <NativeTabs.Trigger.Label>Plans</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="list.bullet.rectangle" md="list_alt" />
+      <NativeTabs.Trigger name="planner">
+        <NativeTabs.Trigger.Label>Planner</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="calendar" md="calendar_month" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="exercises">
-        <NativeTabs.Trigger.Label>Exercises</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="dumbbell" md="fitness_center" />
+      <NativeTabs.Trigger name="groups">
+        <NativeTabs.Trigger.Label>Groups</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} md="group" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="progress">
+        <NativeTabs.Trigger.Label>Progress</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" md="trending_up" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

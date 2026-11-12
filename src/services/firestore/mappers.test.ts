@@ -340,6 +340,57 @@ describe('fromSessionPatch', () => {
     expect(toWorkoutSession('s1', doc).lines).toEqual(lines);
   });
 
+  // Added by the web's Plan + Maybe work. Mobile has to hand them back as it
+  // found them, or saving a workout here would turn every maybe into a planned
+  // exercise and forget its alternates.
+  describe('the section and alternates on a line', () => {
+    const alternates = [
+      { exerciseId: 'pec-deck', nameSnapshot: 'Pec deck', metric: 'weight_reps' as const },
+    ];
+
+    const line = (extra: Record<string, unknown>) => ({
+      lineId: 'l1',
+      exerciseId: 'bench',
+      nameSnapshot: 'Bench',
+      metric: 'weight_reps',
+      sets: [],
+      ...extra,
+    });
+
+    const roundTrip = (extra: Record<string, unknown>) => {
+      const read = toWorkoutSession('s1', { status: 'in_progress', lines: [line(extra)] });
+      const written = fromSessionPatch({ lines: read.lines }) as {
+        lines: Record<string, unknown>[];
+      };
+      return written.lines[0];
+    };
+
+    it('keeps a maybe as a maybe', () => {
+      expect(roundTrip({ section: 'maybe' }).section).toBe('maybe');
+    });
+
+    it('keeps the alternates saved on a slot', () => {
+      expect(roundTrip({ alternates }).alternates).toEqual(alternates);
+    });
+
+    it('adds neither field to a plain line', () => {
+      const written = roundTrip({});
+
+      expect('section' in written).toBe(false);
+      expect('alternates' in written).toBe(false);
+    });
+
+    it('reads them on a template line too', () => {
+      const plan = toWorkoutPlan('p1', {
+        createdAt: timestamp('2026-09-01T00:00:00Z'),
+        lines: [line({ section: 'maybe', alternates })],
+      });
+
+      expect(plan.lines[0].section).toBe('maybe');
+      expect(plan.lines[0].alternates).toEqual(alternates);
+    });
+  });
+
   describe('the done flag on a set', () => {
     const webSet = (extra: Record<string, unknown>) => ({
       status: 'in_progress',

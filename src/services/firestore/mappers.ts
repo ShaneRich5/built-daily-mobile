@@ -1,5 +1,8 @@
+import { lineGroupingFields, parseAlternates, parseLineSection } from '@/lib/line-grouping';
 import type {
+  AlternateExercise,
   ExerciseMetric,
+  LineSection,
   PlanLine,
   PlanRestPreferences,
   SessionLine,
@@ -70,6 +73,22 @@ function toSetLog(raw: DocData): SetLog {
   };
 }
 
+/**
+ * A line's grouping, as the optional fields the types carry: present only when
+ * they say something ("maybe", or at least one alternate), exactly as stored.
+ */
+function toLineGrouping(raw: DocData): {
+  section?: LineSection;
+  alternates?: AlternateExercise[];
+} {
+  const alternates = parseAlternates(raw.alternates);
+
+  return {
+    ...(parseLineSection(raw.section) === 'maybe' ? { section: 'maybe' as const } : {}),
+    ...(alternates.length > 0 ? { alternates } : {}),
+  };
+}
+
 function toSessionLine(raw: DocData): SessionLine {
   return {
     lineId: String(raw.lineId ?? ''),
@@ -77,6 +96,7 @@ function toSessionLine(raw: DocData): SessionLine {
     nameSnapshot: String(raw.nameSnapshot ?? ''),
     metric: toMetric(raw.metric),
     sets: Array.isArray(raw.sets) ? raw.sets.map((set) => toSetLog(set as DocData)) : [],
+    ...toLineGrouping(raw),
   };
 }
 
@@ -117,6 +137,7 @@ function toPlanLine(raw: DocData): PlanLine {
     metric: toMetric(raw.metric),
     targetSets: num(raw.targetSets),
     notes: str(raw.notes),
+    ...toLineGrouping(raw),
   };
 }
 
@@ -197,6 +218,7 @@ function fromSessionLine(line: SessionLine): DocData {
     nameSnapshot: line.nameSnapshot,
     metric: line.metric,
     sets: line.sets.map(fromSetLog),
+    ...lineGroupingFields(line.section, line.alternates),
   };
 }
 

@@ -1,5 +1,6 @@
-import type { CatalogExercise } from '@/lib/exercise-catalog';
+import { type CatalogExercise, findCatalogExercise } from '@/lib/exercise-catalog';
 import { deriveCounters, EMPTY_SET, MAX_SESSION_LINES } from '@/lib/session-edit';
+import type { ScheduledWorkout } from '@/types/planner';
 import type { SessionLine, SetLog, WorkoutPlan, WorkoutSession } from '@/types/workout';
 
 /** A session that has not been written yet, so it has no id of its own. */
@@ -64,6 +65,10 @@ export function sessionFromPlan(
     nameSnapshot: planLine.nameSnapshot,
     metric: planLine.metric,
     sets: emptySets(planLine.targetSets),
+    // A template's maybes and stand-ins come along; both stay absent on a
+    // plain line so the document does not grow fields it has no use for.
+    ...(planLine.section === 'maybe' ? { section: 'maybe' as const } : {}),
+    ...(planLine.alternates?.length ? { alternates: planLine.alternates } : {}),
   }));
 
   const notes = Object.fromEntries(
@@ -79,6 +84,32 @@ export function sessionFromPlan(
     ...session,
     exerciseNotesByLineId: Object.keys(notes).length > 0 ? notes : null,
   };
+}
+
+/**
+ * A workout built from a planner entry that has no template of the lifter's own
+ * behind it — a starter plan, or one whose template was since deleted. The
+ * entry carries only exercise ids, so each is looked up in the catalog and
+ * opens with one empty set; an id the catalog does not know is left out, since
+ * there is no name to show for it.
+ *
+ * `planId` is kept only when it is a real template id. A `starter-*` id names a
+ * built-in plan, not a document, and nothing could be looked up by it later.
+ */
+export function sessionFromPlanned(
+  entry: Pick<ScheduledWorkout, 'label' | 'planId' | 'exerciseIds'>,
+  now: Date,
+  newLineId: LineIdFactory,
+): NewSession {
+  const lines = entry.exerciseIds
+    .slice(0, MAX_SESSION_LINES)
+    .map(findCatalogExercise)
+    .filter((exercise): exercise is CatalogExercise => exercise !== undefined)
+    .map((exercise) => newSessionLine(exercise, newLineId()));
+
+  const planId = entry.planId && !entry.planId.startsWith('starter-') ? entry.planId : null;
+
+  return sessionWithLines(lines, now, entry.label.trim() || defaultSessionTitle(now), planId);
 }
 
 /** One more exercise to log, picked from the catalog or named by the user. */
