@@ -229,6 +229,7 @@ export function ExerciseSearchPanel({
           </ThemedText>
         }
         ListFooterComponent={
+          // undefined, not null: RN 0.88's list types no longer accept null here.
           offerCustom ? (
             <View style={[styles.custom, { borderTopColor: theme.borderSubtle }]}>
               <ThemedText type="caption">Not in the list? Add it as your own.</ThemedText>
@@ -246,7 +247,7 @@ export function ExerciseSearchPanel({
                 disabled={!isReplace && picked.length >= room}
               />
             </View>
-          ) : null
+          ) : undefined
         }
       />
     </SheetFrame>

@@ -1,4 +1,4 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { NativeTabs } from 'expo-router/native-tabs';
 
 import { FontFamily } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';

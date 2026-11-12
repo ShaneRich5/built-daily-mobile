@@ -20,7 +20,7 @@ type ExerciseCatalogListProps = {
   /** Given, every row becomes a button. Omitted, the list is read-only. */
   onSelect?: (exercise: CatalogExercise) => void;
   /** Rendered under the list — where the empty search lands. */
-  footer?: ReactElement | null;
+  footer?: ReactElement;
 };
 
 /**
