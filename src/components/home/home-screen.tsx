@@ -6,6 +6,7 @@ import { CatchUpCard } from '@/components/home/catch-up-card';
 import { LogActivityPanel } from '@/components/home/log-activity-panel';
 import { PickDayPanel } from '@/components/home/pick-day-panel';
 import { ResumeCard, StartCard } from '@/components/home/start-card';
+import { TogetherCard } from '@/components/home/together-card';
 import { WeekCard } from '@/components/home/week-card';
 import { type MenuAction, MenuPanel } from '@/components/session/panels/list-panels';
 import { ThemedText } from '@/components/themed-text';
@@ -20,6 +21,7 @@ import { useSession } from '@/contexts/session';
 import { useHomeActions } from '@/hooks/use-home-actions';
 import { useHomeData } from '@/hooks/use-home-data';
 import { useStartWorkout } from '@/hooks/use-start-workout';
+import { useTogetherToday } from '@/hooks/use-together-today';
 import { useTheme } from '@/hooks/use-theme';
 import { longDayLabel } from '@/lib/date-keys';
 import {
@@ -51,6 +53,8 @@ export function HomeScreen() {
   const actions = useHomeActions();
   const { start, startPlanned, isStarting, error: startError } = useStartWorkout();
   const [panel, setPanel] = useState<Panel>(null);
+  const togetherEntry = home.together;
+  const together = useTogetherToday(togetherEntry, user?.uid ?? null);
 
   const { todayKey, templates, planned, inProgress, missed } = home;
   const suggested = pickSuggestedStart(planned, templates, todayKey);
@@ -169,6 +173,20 @@ export function HomeScreen() {
               onDoToday={() => void actions.moveEntry(missed.id, todayKey)}
               onPickDay={() => setPanel('move')}
               onSkip={() => void actions.skipEntry(missed.id)}
+            />
+          ) : null}
+
+          {together && togetherEntry && !inProgress ? (
+            <TogetherCard
+              together={together}
+              busy={isStarting}
+              onOpen={() =>
+                router.push({
+                  pathname: '/groups/[groupId]/plans/[planId]',
+                  params: { groupId: togetherEntry.groupId, planId: togetherEntry.sharedPlanId },
+                })
+              }
+              onStart={() => startEntry(togetherEntry)}
             />
           ) : null}
 

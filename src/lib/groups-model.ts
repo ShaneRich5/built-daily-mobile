@@ -451,3 +451,29 @@ export function planTemplateOptions(plans: readonly WorkoutPlan[], limit = 6): P
   }));
   return [...mine, ...starters].slice(0, limit);
 }
+
+export type TogetherToday = {
+  label: string;
+  /** "6:30 AM · Iron Works", or "Anytime". */
+  meta: string;
+  /** "Maya and you are going"; empty when no one is. */
+  going: string;
+};
+
+/** What Home's "Training with someone today" card says about a plan together. */
+export function buildTogetherToday(
+  plan: SharedPlan,
+  members: readonly GroupMember[],
+  myUid: string | null,
+): TogetherToday {
+  const names = new Map(members.map((member) => [member.uid, firstName(member.displayName)]));
+  const others = plan.going.filter((uid) => uid !== myUid).map((uid) => names.get(uid) ?? 'Someone');
+  const who = myUid !== null && plan.going.includes(myUid) ? [...others, 'you'] : others;
+  const verb = who.length === 1 && who[0] !== 'you' ? 'is' : 'are';
+
+  return {
+    label: plan.label,
+    meta: [formatPlanTime(plan.time) ?? 'Anytime', plan.where].filter(Boolean).join(' · '),
+    going: who.length > 0 ? `${joinNames(who)} ${verb} going` : '',
+  };
+}

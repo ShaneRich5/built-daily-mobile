@@ -21,7 +21,10 @@ import {
   subscribeToPlans,
   subscribeToRecentSessions,
 } from '@/services/firestore/workout-repository';
+import { subscribeToSharedPlan } from '@/services/firestore/group-plan-repository';
+import { subscribeToMembers } from '@/services/firestore/group-repository';
 import type { Activity } from '@/types/activity';
+import type { GroupMember, SharedPlan } from '@/types/group';
 import type { DatedScheduledWorkout } from '@/types/planner';
 import type { WorkoutPlan, WorkoutSession } from '@/types/workout';
 
@@ -30,6 +33,8 @@ jest.mock('@/services/auth');
 jest.mock('@/services/confirm');
 jest.mock('@/services/firestore/workout-repository');
 jest.mock('@/services/firestore/home-repository');
+jest.mock('@/services/firestore/group-plan-repository');
+jest.mock('@/services/firestore/group-repository');
 jest.mock('expo-router', () => ({
   router: { canGoBack: jest.fn(() => true), back: jest.fn(), replace: jest.fn(), push: jest.fn() },
 }));
@@ -399,6 +404,76 @@ describe('Home', () => {
       await user().press(screen.getByRole('button', { name: 'Save changes' }));
 
       expect(screen.getByText(/Could not save that/)).toBeTruthy();
+    });
+  });
+
+  describe('training with someone today', () => {
+    const legDay: SharedPlan = {
+      id: 'legs-together',
+      groupId: 'crew',
+      dateKey: '2026-11-11',
+      time: '06:30',
+      where: 'Iron Works',
+      label: 'Leg day',
+      exercises: [{ id: 'squat', name: 'Back squat', sets: 4 }],
+      note: null,
+      createdBy: 'maya',
+      createdByName: 'Maya Chen',
+      going: ['maya', 'user-1'],
+      goingAt: {},
+      createdAt: new Date(2026, 10, 10),
+    };
+    let sharedPlan: SharedPlan | null;
+
+    beforeEach(() => {
+      sharedPlan = legDay;
+      entries = [{ ...entry('shared', '2026-11-11'), sharedPlanId: 'legs-together', groupId: 'crew' }];
+      jest.mocked(subscribeToSharedPlan).mockImplementation((_group, _plan, { onData }) => {
+        onData(sharedPlan);
+        return jest.fn();
+      });
+      jest.mocked(subscribeToMembers).mockImplementation((_group, { onData }) => {
+        onData([
+          { uid: 'maya', displayName: 'Maya Chen' } as GroupMember,
+          { uid: 'user-1', displayName: 'Shane' } as GroupMember,
+        ]);
+        return jest.fn();
+      });
+    });
+
+    it('leads with the plan, and opens it', async () => {
+      await render(<HomeScreen />);
+
+      expect(screen.getByText('Training with someone today')).toBeTruthy();
+      expect(screen.getByText('6:30 AM · Iron Works')).toBeTruthy();
+      expect(screen.getByText('Maya and you are going')).toBeTruthy();
+
+      await user().press(screen.getByRole('button', { name: /^Leg day, 6:30 AM/ }));
+      expect(mockedRouter.push).toHaveBeenCalledWith({
+        pathname: '/groups/[groupId]/plans/[planId]',
+        params: { groupId: 'crew', planId: 'legs-together' },
+      });
+    });
+
+    it('starts it from the card', async () => {
+      await render(<HomeScreen />);
+
+      await user().press(screen.getByRole('button', { name: 'Start' }));
+      expect(mockedCreate).toHaveBeenCalledWith('user-1', expect.objectContaining({ title: 'Leg day' }));
+    });
+
+    it('stays away once the plan is gone', async () => {
+      sharedPlan = null;
+      await render(<HomeScreen />);
+
+      expect(screen.queryByText('Training with someone today')).toBeNull();
+    });
+
+    it('stays away while a workout is in progress', async () => {
+      sessions = [session('live', [line(bench, [])], { status: 'in_progress', workoutDate: '2026-11-11' })];
+      await render(<HomeScreen />);
+
+      expect(screen.queryByText('Training with someone today')).toBeNull();
     });
   });
 

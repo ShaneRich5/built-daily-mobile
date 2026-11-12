@@ -555,3 +555,19 @@ export function missedHeadline(entry: DatedScheduledWorkout, todayKey: string): 
 
   return `${entry.label.trim() || 'Workout'} slid past ${when}`;
 }
+
+/**
+ * Today's open planner entry that came from a plan together, if any: Home
+ * leads with it. The first one wins on a day with two.
+ */
+export function pickTogetherToday(
+  entries: readonly DatedScheduledWorkout[],
+  todayKey: string,
+): (DatedScheduledWorkout & { sharedPlanId: string; groupId: string }) | null {
+  for (const entry of entries) {
+    if (entry.dateKey === todayKey && entry.status === 'planned' && entry.sharedPlanId && entry.groupId) {
+      return { ...entry, sharedPlanId: entry.sharedPlanId, groupId: entry.groupId };
+    }
+  }
+  return null;
+}
