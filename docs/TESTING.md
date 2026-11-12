@@ -21,6 +21,8 @@ set on your account first.
 
 1. Install **Expo Go** — free, from the [App Store](https://apps.apple.com/app/expo-go/id982107779)
    or [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent).
+   Keep it up to date: the app is on Expo SDK 58, and an older Expo Go
+   says the project is incompatible.
 2. Ask Shane for the current link, then open it on your phone (or scan the QR
    code with your camera on iOS, or from inside Expo Go on Android).
 

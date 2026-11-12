@@ -12,7 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Expo SDK 58 needs Node 22.13+ or 24.3+ (no odd-numbered releases).
+          node-version: 24
           cache: npm
       - run: npm ci
       # `expo-env.d.ts` is generated rather than committed — Expo gitignores it

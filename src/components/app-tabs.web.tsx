@@ -1,4 +1,5 @@
 import { TabList, Tabs, TabSlot, TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
+import type { ComponentRef, Ref } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -42,6 +43,7 @@ function TabButton({
   children,
   icon: Icon,
   isFocused,
+  ref,
   ...props
 }: TabTriggerSlotProps & { icon: LucideIcon }) {
   const theme = useTheme();
@@ -50,6 +52,9 @@ function TabButton({
   return (
     <Pressable
       {...props}
+      // expo-router/ui still types this ref as `Ref<View>`, which under RN 0.88's strict
+      // types is the component rather than its instance. It is the instance at runtime.
+      ref={ref as Ref<ComponentRef<typeof Pressable>> | undefined}
       accessibilityRole="tab"
       accessibilityState={{ selected: !!isFocused }}
       style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>

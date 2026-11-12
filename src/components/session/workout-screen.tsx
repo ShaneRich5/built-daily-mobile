@@ -1,6 +1,13 @@
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  type ScrollViewInstance,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddExerciseFooter } from '@/components/session/add-exercise-footer';
@@ -98,7 +105,7 @@ export function WorkoutScreen({ session, mode }: WorkoutScreenProps) {
   const [searchKey, setSearchKey] = useState(0);
   const [busy, setBusy] = useState(false);
 
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   /** Where the exercise list starts in the scroll content, and each card within it. */
   const listOffset = useRef(0);
   const cardOffsets = useRef(new Map<string, number>());
