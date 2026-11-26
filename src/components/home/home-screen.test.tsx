@@ -21,6 +21,10 @@ import {
   subscribeToPlans,
   subscribeToRecentSessions,
 } from '@/services/firestore/workout-repository';
+import {
+  subscribeToChallengesEndingSince,
+  subscribeToDailyMetrics,
+} from '@/services/firestore/challenge-repository';
 import { subscribeToSharedPlan } from '@/services/firestore/group-plan-repository';
 import { subscribeToMembers } from '@/services/firestore/group-repository';
 import type { Activity } from '@/types/activity';
@@ -35,6 +39,7 @@ jest.mock('@/services/firestore/workout-repository');
 jest.mock('@/services/firestore/home-repository');
 jest.mock('@/services/firestore/group-plan-repository');
 jest.mock('@/services/firestore/group-repository');
+jest.mock('@/services/firestore/challenge-repository');
 jest.mock('expo-router', () => ({
   router: { canGoBack: jest.fn(() => true), back: jest.fn(), replace: jest.fn(), push: jest.fn() },
 }));
@@ -124,6 +129,14 @@ beforeEach(() => {
   });
   jest.mocked(subscribeToProgressSettings).mockImplementation((_uid, { onData }) => {
     onData({ weeklyGoal: 3, movementGoalDays: 5, goalWeightLbs: null });
+    return jest.fn();
+  });
+  jest.mocked(subscribeToChallengesEndingSince).mockImplementation((_uid, _since, { onData }) => {
+    onData([]);
+    return jest.fn();
+  });
+  jest.mocked(subscribeToDailyMetrics).mockImplementation((_uid, _start, _end, { onData }) => {
+    onData({});
     return jest.fn();
   });
   mockedCreate.mockResolvedValue('new-session');
@@ -427,7 +440,9 @@ describe('Home', () => {
 
     beforeEach(() => {
       sharedPlan = legDay;
-      entries = [{ ...entry('shared', '2026-11-11'), sharedPlanId: 'legs-together', groupId: 'crew' }];
+      entries = [
+        { ...entry('shared', '2026-11-11'), sharedPlanId: 'legs-together', groupId: 'crew' },
+      ];
       jest.mocked(subscribeToSharedPlan).mockImplementation((_group, _plan, { onData }) => {
         onData(sharedPlan);
         return jest.fn();
@@ -459,7 +474,10 @@ describe('Home', () => {
       await render(<HomeScreen />);
 
       await user().press(screen.getByRole('button', { name: 'Start' }));
-      expect(mockedCreate).toHaveBeenCalledWith('user-1', expect.objectContaining({ title: 'Leg day' }));
+      expect(mockedCreate).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ title: 'Leg day' }),
+      );
     });
 
     it('stays away once the plan is gone', async () => {
@@ -470,7 +488,9 @@ describe('Home', () => {
     });
 
     it('stays away while a workout is in progress', async () => {
-      sessions = [session('live', [line(bench, [])], { status: 'in_progress', workoutDate: '2026-11-11' })];
+      sessions = [
+        session('live', [line(bench, [])], { status: 'in_progress', workoutDate: '2026-11-11' }),
+      ];
       await render(<HomeScreen />);
 
       expect(screen.queryByText('Training with someone today')).toBeNull();
