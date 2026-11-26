@@ -42,6 +42,7 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="session/[id]" />
         <Stack.Screen name="history" />
         <Stack.Screen name="exercises" />
+        <Stack.Screen name="settings" />
         <Stack.Screen name="templates/[planId]" />
         <Stack.Screen name="groups/[groupId]/index" />
         <Stack.Screen name="groups/[groupId]/plans/[planId]" />

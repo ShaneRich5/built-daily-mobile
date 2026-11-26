@@ -11,7 +11,7 @@ import { TogetherCard } from '@/components/home/together-card';
 import { WeekCard } from '@/components/home/week-card';
 import { type MenuAction, MenuPanel } from '@/components/session/panels/list-panels';
 import { ThemedText } from '@/components/themed-text';
-import { BookIcon, ListIcon, LogOutIcon, PlusIcon } from '@/components/ui/icons';
+import { BookIcon, ListIcon, LogOutIcon, PlusIcon, SettingsIcon } from '@/components/ui/icons';
 import { ListRow } from '@/components/ui/list-row';
 import { Pill } from '@/components/ui/pill';
 import { Screen } from '@/components/ui/screen';
@@ -117,6 +117,12 @@ export function HomeScreen() {
       label: 'Workout history',
       icon: ListIcon,
       onPress: () => fromMenu(() => router.push('/history')),
+    },
+    {
+      label: 'Settings',
+      detail: 'Calendar link, account',
+      icon: SettingsIcon,
+      onPress: () => fromMenu(() => router.push('/settings')),
     },
     {
       label: 'Sign out',
