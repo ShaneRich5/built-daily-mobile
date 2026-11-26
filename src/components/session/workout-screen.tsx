@@ -19,6 +19,7 @@ import {
 } from '@/components/session/maybe-section';
 import { ExerciseDetailsPanel } from '@/components/session/panels/exercise-details-panel';
 import { ExerciseSearchPanel } from '@/components/session/panels/exercise-search-panel';
+import { FinishLeftoversPanel } from '@/components/session/panels/finish-leftovers-panel';
 import {
   type MenuAction,
   MenuPanel,
@@ -34,6 +35,7 @@ import { ArrowDownUpIcon, NotebookPenIcon, Trash2Icon } from '@/components/ui/ic
 import { SectionLabel } from '@/components/ui/section-label';
 import { SheetHost, type SheetSize } from '@/components/ui/sheet';
 import { MaxContentWidth } from '@/constants/theme';
+import { useSession } from '@/contexts/session';
 import { useLiveWorkout } from '@/hooks/use-live-workout';
 import { useTheme } from '@/hooks/use-theme';
 import { useWorkoutHistory } from '@/hooks/use-workout-history';
@@ -53,6 +55,15 @@ import {
   MAX_SESSION_EXERCISES,
   volumeLine,
 } from '@/lib/session/session-model';
+import { dateKey } from '@/lib/date-keys';
+import {
+  buildLeftoverPlan,
+  defaultLeftoverChoices,
+  doneSummary,
+  type LeftoverChoice,
+  type NextPlannedDay,
+  untouchedExercises,
+} from '@/lib/session/leftovers';
 import { fullIndexForSectionMove, nextUnfinishedAfter } from '@/lib/session/session-reducer';
 import { timeLabel } from '@/lib/session/session-summary';
 import {
@@ -62,6 +73,7 @@ import {
   type SetRow,
 } from '@/lib/session/set-row';
 import { confirm } from '@/services/confirm';
+import { findNextPlannedForPlan, saveLeftoverPlan } from '@/services/firestore/planner-repository';
 import type { WorkoutSession } from '@/types/workout';
 
 /** Which sheet is showing. One host shows them all, so only one can be up. */
@@ -75,9 +87,17 @@ type Panel =
   | 'reorder'
   | 'workout'
   | 'menu'
+  | 'leftovers'
   | null;
 
-const TALL_PANELS: ReadonlySet<Panel> = new Set(['add', 'addMaybe', 'swapSearch', 'details', 'reorder']);
+const TALL_PANELS: ReadonlySet<Panel> = new Set([
+  'add',
+  'addMaybe',
+  'swapSearch',
+  'details',
+  'reorder',
+  'leftovers',
+]);
 
 type WorkoutScreenProps = {
   /** Seeds the screen once; see `useLiveWorkout` for why later snapshots are ignored. */
@@ -104,6 +124,12 @@ export function WorkoutScreen({ session, mode }: WorkoutScreenProps) {
   /** Bumped on every open so the search sheet starts fresh. */
   const [searchKey, setSearchKey] = useState(0);
   const [busy, setBusy] = useState(false);
+  const { user } = useSession();
+  /** Where "Next time" points on the leftovers sheet, and each exercise's choice. */
+  const [leftovers, setLeftovers] = useState<{
+    next: NextPlannedDay | null | 'loading';
+    choices: Record<string, LeftoverChoice>;
+  }>({ next: null, choices: {} });
 
   const scroll = useRef<ScrollViewInstance>(null);
   /** Where the exercise list starts in the scroll content, and each card within it. */
@@ -245,7 +271,41 @@ export function WorkoutScreen({ session, mode }: WorkoutScreenProps) {
 
   const leave = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
+  const leftoverItems = untouchedExercises(exercises);
+
+  /** Something left undone? Ask where it goes before saving. Only for a live workout. */
   const finish = async () => {
+    if (isLive && user && leftoverItems.length > 0) {
+      openLeftovers(user.uid);
+      return;
+    }
+    await saveFinished();
+  };
+
+  const openLeftovers = (uid: string) => {
+    const planId = session.planId;
+    setLeftovers({ next: planId ? 'loading' : null, choices: defaultLeftoverChoices(leftoverItems, false) });
+    setPanel('leftovers');
+    if (!planId) return;
+    findNextPlannedForPlan(uid, planId, dateKey(new Date()))
+      .catch(() => null)
+      .then((next) =>
+        setLeftovers({ next, choices: defaultLeftoverChoices(leftoverItems, next !== null) }),
+      );
+  };
+
+  const finishWithLeftovers = async () => {
+    if (!user || leftovers.next === 'loading') return;
+    // Not awaited: offline, Firestore only resolves once the writes reach the
+    // server, and the workout itself must always save straight away.
+    void saveLeftoverPlan(
+      user.uid,
+      buildLeftoverPlan(leftoverItems, leftovers.choices, leftovers.next, title),
+    ).catch(() => {});
+    await saveFinished();
+  };
+
+  const saveFinished = async () => {
     setBusy(true);
     // On success the document turns "completed" and the route swaps this
     // screen for the summary, so there is nowhere to navigate to.
@@ -493,6 +553,28 @@ export function WorkoutScreen({ session, mode }: WorkoutScreenProps) {
             recent={recentExercises(pastSessions)}
             onAdd={(picked) => addExercises(picked, panel === 'addMaybe' ? 'maybe' : 'plan')}
             onReplace={(next) => focusItem && void swapExercise(focusItem.lineId, next)}
+          />
+        ) : null}
+
+        {panel === 'leftovers' ? (
+          <FinishLeftoversPanel
+            workoutTitle={title}
+            summary={doneSummary(
+              exercises.length - leftoverItems.length,
+              exercises.reduce((total, item) => total + item.sets.filter((set) => set.done).length, 0),
+            )}
+            items={leftoverItems}
+            next={leftovers.next}
+            choices={leftovers.choices}
+            onChoose={(lineId, choice) =>
+              setLeftovers((current) => ({
+                ...current,
+                choices: { ...current.choices, [lineId]: choice },
+              }))
+            }
+            finishing={busy}
+            onFinish={() => void finishWithLeftovers()}
+            onKeepGoing={closePanel}
           />
         ) : null}
 
