@@ -212,6 +212,7 @@ export function InvitePanel({
   memberCount,
   maxMembers,
   code,
+  plan = null,
   isOwner,
   onReset,
 }: {
@@ -219,6 +220,8 @@ export function InvitePanel({
   memberCount: number;
   maxMembers: number;
   code: string;
+  /** Inviting to one plan together: joining from the link also says "I'm in" to it. */
+  plan?: { id: string; label: string } | null;
   isOwner: boolean;
   /** Resolves to whether the code was reset. */
   onReset: () => Promise<boolean>;
@@ -226,13 +229,14 @@ export function InvitePanel({
   const theme = useTheme();
   const [note, setNote] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
-  const url = inviteUrl(WEB_APP_URL, code);
+  const url = inviteUrl(WEB_APP_URL, code, plan?.id ?? null);
   const full = memberCount >= maxMembers;
 
   const share = async () => {
     setNote(null);
     try {
-      await Share.share({ message: `Join ${groupName} on Built Daily: ${url}\nOr enter code ${spacedCode(code)} in Groups › Join.` });
+      const invite = plan ? `Join me for ${plan.label} on Built Daily` : `Join ${groupName} on Built Daily`;
+      await Share.share({ message: `${invite}: ${url}\nOr enter code ${spacedCode(code)} in Groups › Join.` });
     } catch {
       setNote('Couldn’t open sharing. Read them the code instead.');
     }
@@ -247,8 +251,8 @@ export function InvitePanel({
 
   return (
     <SheetFrame
-      title={`Invite to ${groupName}`}
-      subtitle={`${memberCount} of ${maxMembers} spots taken`}
+      title={plan ? `Invite to ${plan.label}` : `Invite to ${groupName}`}
+      subtitle={`${plan ? `${groupName} · ` : ''}${memberCount} of ${maxMembers} spots taken`}
       footer={<Button label="Share invite" icon={ShareIcon} size="lg" onPress={() => void share()} />}>
       <View style={styles.content}>
         {full ? (

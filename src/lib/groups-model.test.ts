@@ -12,6 +12,7 @@ import {
   groupDisplayName,
   groupSummary,
   inviteUrl,
+  joinCopy,
   joinNames,
   nextPlannedLabel,
   spacedCode,
@@ -21,7 +22,7 @@ import {
 } from '@/lib/groups-model';
 import { effectiveStreak, memberSignals, upcomingPlansFromEntries } from '@/lib/workout-signals';
 import { session } from '@/lib/session/session-test-helpers';
-import type { Group, GroupMember, SharedPlan } from '@/types/group';
+import type { Group, GroupMember, InvitePreview, SharedPlan } from '@/types/group';
 
 // Wednesday. The week runs Sun Nov 8 – Sat Nov 14.
 const TODAY = '2026-11-11';
@@ -175,6 +176,9 @@ describe('invites', () => {
   it('spaces a code and builds the link', () => {
     expect(spacedCode('K7Q2MDXA')).toBe('K7Q2 MDXA');
     expect(inviteUrl('https://example.app', 'K7Q2MDXA')).toBe('https://example.app/join/K7Q2MDXA');
+    expect(inviteUrl('https://example.app', 'K7Q2MDXA', 'plan 1')).toBe(
+      'https://example.app/join/K7Q2MDXA?plan=plan%201',
+    );
   });
 
   it('builds the signed-out preview: first names, counts and plans still ahead', () => {
@@ -305,5 +309,57 @@ describe('training with someone today', () => {
 
   it('says nothing about who when no one is going', () => {
     expect(buildTogetherToday({ ...plan, going: [] }, [me, maya], 'me').going).toBe('');
+  });
+});
+
+describe('joinCopy', () => {
+  const preview: InvitePreview = {
+    groupId: 'g1',
+    groupName: 'Dawn Patrol',
+    kind: 'group',
+    invitedByName: 'Maya',
+    memberFirstNames: ['Maya', 'Leo', 'Sam'],
+    memberCount: 3,
+    workoutsThisWeek: 4,
+    plans: {
+      p1: {
+        dateKey: '2026-11-26',
+        time: '18:30',
+        where: 'Iron Works',
+        label: 'Leg day',
+        goingFirstNames: ['Maya'],
+      },
+    },
+    updatedAt: new Date('2026-11-24'),
+  };
+
+  it('names who invited you and who is in it', () => {
+    expect(joinCopy(preview, null)).toEqual({
+      headline: 'Maya invited you to Dawn Patrol',
+      blurb: 'Leo and Sam keep each other showing up. 4 workouts between them this week.',
+      plan: null,
+      joinLabel: 'Join Dawn Patrol',
+    });
+  });
+
+  it('shows the plan the link was for', () => {
+    expect(joinCopy(preview, 'p1').plan).toEqual({
+      weekday: 'Thu',
+      dayOfMonth: 26,
+      label: 'Leg day',
+      meta: '6:30 PM · Iron Works',
+      going: 'Maya is going',
+    });
+    expect(joinCopy(preview, 'gone').plan).toBeNull();
+  });
+
+  it('reads as a buddy invite for a buddy', () => {
+    const copy = joinCopy({ ...preview, kind: 'buddy', memberFirstNames: ['Maya'] }, null);
+    expect(copy.headline).toBe('Maya invited you to be gym buddies');
+    expect(copy.joinLabel).toBe('Join as gym buddies');
+  });
+
+  it('still invites warmly without a preview', () => {
+    expect(joinCopy(null, null).headline).toBe('You’re invited to train together');
   });
 });

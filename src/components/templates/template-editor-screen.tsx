@@ -12,9 +12,11 @@ import {
   ArrowDownIcon,
   ArrowLeftIcon,
   ArrowUpIcon,
+  ArrowLeftRightIcon,
   EllipsisIcon,
   PlusIcon,
   Trash2Icon,
+  XIcon,
 } from '@/components/ui/icons';
 import { SectionLabel } from '@/components/ui/section-label';
 import { SheetHost } from '@/components/ui/sheet';
@@ -24,13 +26,19 @@ import { usePlans } from '@/hooks/use-plans';
 import { useStartWorkout } from '@/hooks/use-start-workout';
 import { useTheme } from '@/hooks/use-theme';
 import { useWorkoutHistory } from '@/hooks/use-workout-history';
+import { MAX_ALTERNATES } from '@/lib/line-grouping';
 import { exerciseFromLine } from '@/lib/session/session-state';
 import { recentExercises, suggestedForSearch } from '@/lib/session/exercise-suggestions';
 import {
+  addAlternate,
   clampTargetSets,
   lineFromExercise,
   lineMeta,
-  moveLine,
+  moveLineInSection,
+  orderBySection,
+  removeAlternate,
+  sectionOf,
+  setLineSection,
   targetSetsOf,
   templateProblem,
   templateToSave,
@@ -74,7 +82,13 @@ export function TemplateEditorScreen({ planId }: TemplateEditorScreenProps) {
   return <TemplateEditor key={plan?.id ?? 'new'} initial={plan} />;
 }
 
-type Panel = 'add' | 'options' | { line: PlanLine } | null;
+type Panel =
+  | 'add'
+  | 'addMaybe'
+  | 'options'
+  | { line: PlanLine }
+  | { alternateFor: PlanLine }
+  | null;
 
 /**
  * Building or editing a workout template: a name, and exercises with how many
@@ -89,13 +103,15 @@ function TemplateEditor({ initial }: { initial: WorkoutPlan | null }) {
   const { start, isStarting } = useStartWorkout();
 
   const [name, setName] = useState(initial?.name ?? '');
-  const [lines, setLines] = useState<PlanLine[]>(initial?.lines ?? []);
+  const [lines, setLines] = useState<PlanLine[]>(() => orderBySection(initial?.lines ?? []));
   const [panel, setPanel] = useState<Panel>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchKey, setSearchKey] = useState(0);
 
-  const saved = JSON.stringify({ name: initial?.name ?? '', lines: initial?.lines ?? [] });
+  const saved = JSON.stringify({ name: initial?.name ?? '', lines: orderBySection(initial?.lines ?? []) });
+  const planLines = lines.filter((line) => sectionOf(line) === 'plan');
+  const maybeLines = lines.filter((line) => sectionOf(line) === 'maybe');
   const isDirty = JSON.stringify({ name, lines }) !== saved;
   const problem = templateProblem(name, lines);
   const room = MAX_TEMPLATE_LINES - lines.length;
@@ -111,7 +127,15 @@ function TemplateEditor({ initial }: { initial: WorkoutPlan | null }) {
     );
 
   const shiftLine = (lineId: string, delta: -1 | 1) =>
-    setLines((all) => moveLine(all, all.findIndex((line) => line.lineId === lineId), delta));
+    setLines((all) => moveLineInSection(all, lineId, delta));
+
+  const updateLine = (lineId: string, change: (line: PlanLine) => PlanLine) =>
+    setLines((all) => all.map((line) => (line.lineId === lineId ? change(line) : line)));
+
+  const openSearch = (next: 'add' | 'addMaybe' | { alternateFor: PlanLine }) => {
+    setSearchKey((key) => key + 1);
+    setPanel(next);
+  };
 
   const leave = () => (router.canGoBack() ? router.back() : router.replace('/planner'));
 
@@ -169,8 +193,12 @@ function TemplateEditor({ initial }: { initial: WorkoutPlan | null }) {
     }
   };
 
+  const alternateFor = panel !== null && typeof panel === 'object' && 'alternateFor' in panel ? panel.alternateFor : null;
+
   const lineActions = (line: PlanLine): MenuAction[] => {
-    const index = lines.findIndex((candidate) => candidate.lineId === line.lineId);
+    const section = sectionOf(line);
+    const inSection = section === 'maybe' ? maybeLines : planLines;
+    const index = inSection.findIndex((candidate) => candidate.lineId === line.lineId);
     const close = (run: () => void) => () => {
       run();
       setPanel(null);
@@ -181,9 +209,34 @@ function TemplateEditor({ initial }: { initial: WorkoutPlan | null }) {
       {
         label: 'Move down',
         icon: ArrowDownIcon,
-        disabled: index >= lines.length - 1,
+        disabled: index >= inSection.length - 1,
         onPress: close(() => shiftLine(line.lineId, 1)),
       },
+      section === 'plan'
+        ? {
+            label: 'Move to Maybe',
+            detail: 'Only if there’s time',
+            onPress: close(() => setLines((all) => setLineSection(all, line.lineId, 'maybe'))),
+          }
+        : {
+            label: 'Move to Plan',
+            onPress: close(() => setLines((all) => setLineSection(all, line.lineId, 'plan'))),
+          },
+      {
+        label: 'Add an alternate',
+        detail: 'Another exercise that fills this slot',
+        icon: ArrowLeftRightIcon,
+        disabled: (line.alternates?.length ?? 0) >= MAX_ALTERNATES,
+        onPress: () => openSearch({ alternateFor: line }),
+      },
+      ...(line.alternates ?? []).map(
+        (alternate): MenuAction => ({
+          label: `Remove ${alternate.nameSnapshot}`,
+          detail: 'Alternate',
+          icon: XIcon,
+          onPress: close(() => updateLine(line.lineId, (current) => removeAlternate(current, alternate.exerciseId))),
+        }),
+      ),
       {
         label: 'Remove',
         icon: Trash2Icon,
@@ -192,6 +245,59 @@ function TemplateEditor({ initial }: { initial: WorkoutPlan | null }) {
       },
     ];
   };
+
+  const renderLine = (line: PlanLine, index: number) => (
+    <View
+      key={line.lineId}
+      style={[styles.line, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <ThemedText type="monoSmall" themeColor="textFaint" style={styles.number}>
+        {index + 1}
+      </ThemedText>
+      <View style={styles.lineText}>
+        <ThemedText type="label" numberOfLines={1}>
+          {line.nameSnapshot}
+        </ThemedText>
+        <ThemedText type="caption" numberOfLines={1}>
+          {line.alternates?.length
+            ? `or ${line.alternates.map((alternate) => alternate.nameSnapshot).join(', ')}`
+            : lineMeta(line)}
+        </ThemedText>
+      </View>
+      <View style={[styles.stepper, { borderColor: theme.border }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Fewer sets of ${line.nameSnapshot}`}
+          hitSlop={4}
+          onPress={() => setTargetSets(line.lineId, -1)}
+          style={styles.step}>
+          <ThemedText style={styles.stepGlyph} themeColor="textBody">
+            −
+          </ThemedText>
+        </Pressable>
+        <ThemedText type="small" style={styles.stepValue}>
+          {targetSetsOf(line)} sets
+        </ThemedText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`More sets of ${line.nameSnapshot}`}
+          hitSlop={4}
+          onPress={() => setTargetSets(line.lineId, 1)}
+          style={styles.step}>
+          <ThemedText style={styles.stepGlyph} themeColor="textBody">
+            +
+          </ThemedText>
+        </Pressable>
+      </View>
+      <IconButton
+        icon={EllipsisIcon}
+        accessibilityLabel={`Actions for ${line.nameSnapshot}`}
+        variant="plain"
+        size={36}
+        muted
+        onPress={() => setPanel({ line })}
+      />
+    </View>
+  );
 
   return (
     <SafeAreaView edges={['top']} style={[styles.root, { backgroundColor: theme.background }]}>
@@ -230,75 +336,31 @@ function TemplateEditor({ initial }: { initial: WorkoutPlan | null }) {
         </View>
 
         <View style={styles.section}>
-          <SectionLabel>{`Exercises · ${lines.length}`}</SectionLabel>
+          <SectionLabel>{`Plan · ${planLines.length}`}</SectionLabel>
 
-          {lines.map((line, index) => (
-            <View
-              key={line.lineId}
-              style={[styles.line, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <ThemedText type="monoSmall" themeColor="textFaint" style={styles.number}>
-                {index + 1}
-              </ThemedText>
-              <View style={styles.lineText}>
-                <ThemedText type="label" numberOfLines={1}>
-                  {line.nameSnapshot}
-                </ThemedText>
-                <ThemedText type="caption" numberOfLines={1}>
-                  {lineMeta(line)}
-                </ThemedText>
-              </View>
-              <View style={[styles.stepper, { borderColor: theme.border }]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Fewer sets of ${line.nameSnapshot}`}
-                  hitSlop={4}
-                  onPress={() => setTargetSets(line.lineId, -1)}
-                  style={styles.step}>
-                  <ThemedText style={styles.stepGlyph} themeColor="textBody">
-                    −
-                  </ThemedText>
-                </Pressable>
-                <ThemedText type="small" style={styles.stepValue}>
-                  {targetSetsOf(line)} sets
-                </ThemedText>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`More sets of ${line.nameSnapshot}`}
-                  hitSlop={4}
-                  onPress={() => setTargetSets(line.lineId, 1)}
-                  style={styles.step}>
-                  <ThemedText style={styles.stepGlyph} themeColor="textBody">
-                    +
-                  </ThemedText>
-                </Pressable>
-              </View>
-              <IconButton
-                icon={EllipsisIcon}
-                accessibilityLabel={`Actions for ${line.nameSnapshot}`}
-                variant="plain"
-                size={36}
-                muted
-                onPress={() => setPanel({ line })}
-              />
-            </View>
-          ))}
+          {planLines.map(renderLine)}
 
           {room > 0 ? (
-            <Button
-              label="Add exercises"
-              icon={PlusIcon}
-              variant="dashed"
-              size="lg"
-              onPress={() => {
-                setSearchKey((key) => key + 1);
-                setPanel('add');
-              }}
-            />
+            <Button label="Add exercises" icon={PlusIcon} variant="dashed" size="lg" onPress={() => openSearch('add')} />
           ) : (
             <ThemedText type="small" themeColor="textSecondary">
               That&apos;s the {MAX_TEMPLATE_LINES}-exercise limit for a template.
             </ThemedText>
           )}
+        </View>
+
+        <View style={styles.section}>
+          <SectionLabel>{`Maybe · ${maybeLines.length}`}</SectionLabel>
+          {maybeLines.length === 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              Extras to do only if there’s time. Skipping one is never a miss.
+            </ThemedText>
+          ) : (
+            maybeLines.map(renderLine)
+          )}
+          {room > 0 ? (
+            <Button label="Add a maybe" icon={PlusIcon} variant="ghost" size="sm" onPress={() => openSearch('addMaybe')} style={styles.maybeAdd} />
+          ) : null}
         </View>
 
         {error ? (
@@ -337,18 +399,49 @@ function TemplateEditor({ initial }: { initial: WorkoutPlan | null }) {
         />
       </View>
 
-      <SheetHost visible={panel !== null} onClose={() => setPanel(null)} size={panel === 'add' ? 'tall' : 'content'}>
-        {panel === 'add' ? (
+      <SheetHost
+        visible={panel !== null}
+        onClose={() => setPanel(null)}
+        size={panel === 'add' || panel === 'addMaybe' || alternateFor ? 'tall' : 'content'}>
+        {panel === 'add' || panel === 'addMaybe' ? (
           <ExerciseSearchPanel
             key={searchKey}
-            mode={{ kind: 'add', afterName: lines[lines.length - 1]?.nameSnapshot ?? null, room }}
+            mode={{
+              kind: 'add',
+              afterName: panel === 'addMaybe' ? null : (planLines[planLines.length - 1]?.nameSnapshot ?? null),
+              room,
+            }}
             suggested={suggestedForSearch(sessions, current)}
             recent={recentExercises(sessions)}
             onAdd={(picked) => {
-              setLines((all) => [...all, ...picked.map((exercise) => lineFromExercise(exercise, newLineId))]);
+              const section = panel === 'addMaybe' ? 'maybe' : 'plan';
+              setLines((all) =>
+                orderBySection([...all, ...picked.map((exercise) => lineFromExercise(exercise, newLineId, section))]),
+              );
               setPanel(null);
             }}
             onReplace={() => setPanel(null)}
+          />
+        ) : null}
+
+        {alternateFor ? (
+          <ExerciseSearchPanel
+            key={searchKey}
+            mode={{
+              kind: 'replace',
+              currentName: alternateFor.nameSnapshot,
+              heading: {
+                title: 'Add an alternate',
+                subtitle: `Something to do instead of ${alternateFor.nameSnapshot} when it's busy`,
+              },
+            }}
+            suggested={suggestedForSearch(sessions, current)}
+            recent={recentExercises(sessions)}
+            onAdd={() => setPanel(null)}
+            onReplace={(exercise) => {
+              updateLine(alternateFor.lineId, (line) => addAlternate(line, exercise));
+              setPanel(null);
+            }}
           />
         ) : null}
 
@@ -359,7 +452,7 @@ function TemplateEditor({ initial }: { initial: WorkoutPlan | null }) {
           />
         ) : null}
 
-        {panel !== null && typeof panel === 'object' ? (
+        {panel !== null && typeof panel === 'object' && 'line' in panel ? (
           <MenuPanel title={panel.line.nameSnapshot} actions={lineActions(panel.line)} />
         ) : null}
       </SheetHost>
@@ -368,6 +461,9 @@ function TemplateEditor({ initial }: { initial: WorkoutPlan | null }) {
 }
 
 const styles = StyleSheet.create({
+  maybeAdd: {
+    alignSelf: 'flex-start',
+  },
   root: {
     flex: 1,
   },

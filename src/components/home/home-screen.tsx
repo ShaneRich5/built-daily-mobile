@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { StepChallengeSection } from '@/components/challenges/step-challenge-section';
 import { CatchUpCard } from '@/components/home/catch-up-card';
 import { LogActivityPanel } from '@/components/home/log-activity-panel';
 import { PickDayPanel } from '@/components/home/pick-day-panel';
@@ -10,7 +11,7 @@ import { TogetherCard } from '@/components/home/together-card';
 import { WeekCard } from '@/components/home/week-card';
 import { type MenuAction, MenuPanel } from '@/components/session/panels/list-panels';
 import { ThemedText } from '@/components/themed-text';
-import { BookIcon, ListIcon, LogOutIcon, PlusIcon } from '@/components/ui/icons';
+import { BookIcon, ListIcon, LogOutIcon, PlusIcon, SettingsIcon } from '@/components/ui/icons';
 import { ListRow } from '@/components/ui/list-row';
 import { Pill } from '@/components/ui/pill';
 import { Screen } from '@/components/ui/screen';
@@ -21,6 +22,7 @@ import { useSession } from '@/contexts/session';
 import { useHomeActions } from '@/hooks/use-home-actions';
 import { useHomeData } from '@/hooks/use-home-data';
 import { useStartWorkout } from '@/hooks/use-start-workout';
+import { useStepChallenge } from '@/hooks/use-step-challenge';
 import { useTogetherToday } from '@/hooks/use-together-today';
 import { useTheme } from '@/hooks/use-theme';
 import { longDayLabel } from '@/lib/date-keys';
@@ -55,6 +57,7 @@ export function HomeScreen() {
   const [panel, setPanel] = useState<Panel>(null);
   const togetherEntry = home.together;
   const together = useTogetherToday(togetherEntry, user?.uid ?? null);
+  const challenge = useStepChallenge(home.todayKey);
 
   const { todayKey, templates, planned, inProgress, missed } = home;
   const suggested = pickSuggestedStart(planned, templates, todayKey);
@@ -114,6 +117,12 @@ export function HomeScreen() {
       label: 'Workout history',
       icon: ListIcon,
       onPress: () => fromMenu(() => router.push('/history')),
+    },
+    {
+      label: 'Settings',
+      detail: 'Calendar link, account',
+      icon: SettingsIcon,
+      onPress: () => fromMenu(() => router.push('/settings')),
     },
     {
       label: 'Sign out',
@@ -230,6 +239,8 @@ export function HomeScreen() {
               onOpenActivity={(activityId) => setPanel({ activityId })}
             />
           </View>
+
+          <StepChallengeSection todayKey={todayKey} challenge={challenge} />
 
           <View style={styles.section}>
             <SectionLabel action={{ label: 'See all', onPress: () => router.push('/history') }}>

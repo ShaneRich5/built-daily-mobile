@@ -253,9 +253,14 @@ export function spacedCode(code: string): string {
   return code.length === 8 ? `${code.slice(0, 4)} ${code.slice(4)}` : code;
 }
 
-/** The web's join page for a code; it opens the group, or asks them to sign up first. */
-export function inviteUrl(webOrigin: string, code: string): string {
-  return `${webOrigin}/join/${code}`;
+/**
+ * The web's join page for a code; it opens the group, or asks them to sign up
+ * first. With a plan it's `?plan=ID` too, so joining also says "I'm in" to it —
+ * the same link the web app's invite sheet makes.
+ */
+export function inviteUrl(webOrigin: string, code: string, planId: string | null = null): string {
+  const base = `${webOrigin}/join/${code}`;
+  return planId ? `${base}?plan=${encodeURIComponent(planId)}` : base;
 }
 
 const MAX_PREVIEW_PLANS = 10;
@@ -475,5 +480,70 @@ export function buildTogetherToday(
     label: plan.label,
     meta: [formatPlanTime(plan.time) ?? 'Anytime', plan.where].filter(Boolean).join(' · '),
     going: who.length > 0 ? `${joinNames(who)} ${verb} going` : '',
+  };
+}
+
+export type JoinPlanCard = {
+  weekday: string;
+  dayOfMonth: number;
+  label: string;
+  meta: string;
+  going: string | null;
+};
+
+export type JoinCopy = {
+  headline: string;
+  blurb: string | null;
+  plan: JoinPlanCard | null;
+  joinLabel: string;
+};
+
+/**
+ * The join page's words, from the invite preview (first names and counts
+ * only). With no preview — an old link, or one made before previews — it
+ * still reads as a warm invite. Ported from the web's `joinCopy`.
+ */
+export function joinCopy(preview: InvitePreview | null, planId: string | null): JoinCopy {
+  if (!preview) {
+    return {
+      headline: 'You’re invited to train together',
+      blurb: 'Join to see each other’s week, plan workouts together and cheer each other on.',
+      plan: null,
+      joinLabel: 'Join',
+    };
+  }
+
+  const others = preview.memberFirstNames.filter((name) => name !== preview.invitedByName);
+  const buddy = preview.kind === 'buddy';
+  const workouts = preview.workoutsThisWeek;
+  const between =
+    workouts > 0 ? ` ${workouts} workout${workouts === 1 ? '' : 's'} between them this week.` : '';
+  const blurb = buddy
+    ? 'Just the two of you. See each other’s week, plan sessions, keep each other going.'
+    : others.length > 0
+      ? `${others.length === 1 ? `${preview.invitedByName} and ${others[0]}` : joinNames(others, 4)} keep each other showing up.${between}`
+      : null;
+
+  const shared = planId ? preview.plans[planId] : undefined;
+  const plan: JoinPlanCard | null = shared
+    ? {
+        weekday: weekdayShort(shared.dateKey),
+        dayOfMonth: Number(shared.dateKey.slice(8, 10)),
+        label: shared.label,
+        meta: [formatPlanTime(shared.time), shared.where].filter(Boolean).join(' · '),
+        going:
+          shared.goingFirstNames.length > 0
+            ? `${joinNames(shared.goingFirstNames)} ${shared.goingFirstNames.length === 1 ? 'is' : 'are'} going`
+            : null,
+      }
+    : null;
+
+  return {
+    headline: buddy
+      ? `${preview.invitedByName} invited you to be gym buddies`
+      : `${preview.invitedByName} invited you to ${preview.groupName}`,
+    blurb,
+    plan,
+    joinLabel: buddy ? 'Join as gym buddies' : `Join ${preview.groupName}`,
   };
 }

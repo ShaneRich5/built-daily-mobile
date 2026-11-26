@@ -1,4 +1,8 @@
-import { findCatalogExercise, type CatalogExercise } from '@/lib/exercise-catalog';
+import {
+  findCatalogExercise,
+  remapRetiredExercise,
+  type CatalogExercise,
+} from '@/lib/exercise-catalog';
 import type { AlternateExercise, ExerciseMetric, LineSection } from '@/types/workout';
 
 /**
@@ -37,9 +41,10 @@ export function parseAlternates(raw: unknown): AlternateExercise[] {
     if (typeof item !== 'object' || item === null) continue;
 
     const data = item as Record<string, unknown>;
-    const exerciseId = typeof data.exerciseId === 'string' ? data.exerciseId : '';
-    const nameSnapshot =
-      typeof data.nameSnapshot === 'string' ? data.nameSnapshot.slice(0, 200) : '';
+    const { exerciseId, nameSnapshot } = remapRetiredExercise(
+      typeof data.exerciseId === 'string' ? data.exerciseId : '',
+      typeof data.nameSnapshot === 'string' ? data.nameSnapshot.slice(0, 200) : '',
+    );
     const metric =
       typeof data.metric === 'string' && METRICS.has(data.metric)
         ? (data.metric as ExerciseMetric)

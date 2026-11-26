@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 
 import { GroupScreen } from '@/components/groups/group-screen';
 import { GroupsScreen } from '@/components/groups/groups-screen';
+import { JoinScreen } from '@/components/groups/join-screen';
 import { PlanScreen } from '@/components/groups/plan-screen';
 import { useSession } from '@/contexts/session';
 import { confirm } from '@/services/confirm';
@@ -14,11 +15,13 @@ import {
   startableExerciseIds,
   subscribeToGroupPlans,
   subscribeToSharedPlan,
+  updateSharedPlanDetails,
 } from '@/services/firestore/group-plan-repository';
 import {
   cheer,
   createGroup,
   deleteGroup,
+  getInvitePreview,
   joinGroupByCode,
   leaveGroup,
   refreshInvitePreview,
@@ -27,6 +30,7 @@ import {
   subscribeToMembers,
   subscribeToMemberships,
 } from '@/services/firestore/group-repository';
+import { Share } from 'react-native';
 import { createSession, subscribeToPlans } from '@/services/firestore/workout-repository';
 import { syncGroups } from '@/services/group-sync';
 import type { Cheer, Group, GroupMember, GroupMembership, SharedPlan } from '@/types/group';
@@ -462,9 +466,89 @@ describe('plans together', () => {
     expect(cancelSharedPlan).toHaveBeenCalledWith(ME, 'crew', 'legs');
   });
 
+  it('lets its creator change the time, place and note', async () => {
+    jest.mocked(updateSharedPlanDetails).mockResolvedValue(undefined);
+    plans = [legDay({ createdBy: 'me', going: ['me'] })];
+    await render(<PlanScreen groupId="crew" planId="legs" />);
+
+    await user().press(screen.getByRole('button', { name: 'Plan options' }));
+    await user().press(screen.getByRole('button', { name: 'Edit plan' }));
+    const time = screen.getByLabelText('Time (24-hour, leave empty for anytime)');
+    await user().clear(time);
+    await user().type(time, '18:30');
+    await user().clear(screen.getByLabelText('Note'));
+    await user().press(screen.getByRole('button', { name: 'Save' }));
+
+    expect(updateSharedPlanDetails).toHaveBeenCalledWith('crew', 'legs', {
+      time: '18:30',
+      where: 'Iron Works',
+      note: '',
+    });
+  });
+
+  it('invites a friend to the plan itself', async () => {
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction', activityType: undefined });
+    plans = [legDay()];
+    await render(<PlanScreen groupId="crew" planId="legs" />);
+
+    await user().press(screen.getByRole('button', { name: 'Invite a friend to this' }));
+    expect(screen.getByRole('header', { name: 'Invite to Leg day' })).toBeTruthy();
+    await user().press(screen.getByRole('button', { name: 'Share invite' }));
+
+    expect(share).toHaveBeenCalledWith({
+      message: expect.stringMatching(/^Join me for Leg day on Built Daily: https:\/\/\S+\/join\/K7Q2MDXA\?plan=legs/),
+    });
+    expect(refreshInvitePreview).toHaveBeenCalled();
+    share.mockRestore();
+  });
+
   it('says so when a plan is gone', async () => {
     await render(<PlanScreen groupId="crew" planId="nope" />);
 
     expect(screen.getByText('This plan isn’t here anymore')).toBeTruthy();
+  });
+});
+
+describe('joining from a link', () => {
+  const preview = {
+    groupId: 'crew',
+    groupName: 'Morning Crew',
+    kind: 'group' as const,
+    invitedByName: 'Maya',
+    memberFirstNames: ['Maya', 'Leo'],
+    memberCount: 2,
+    workoutsThisWeek: 0,
+    plans: {
+      legs: { dateKey: '2026-11-12', time: null, where: null, label: 'Leg day', goingFirstNames: ['Maya'] },
+    },
+    updatedAt: new Date(2026, 10, 10),
+  };
+
+  it('joins the group and says I’m in to the plan in the link', async () => {
+    jest.mocked(getInvitePreview).mockResolvedValue(preview);
+    jest.mocked(joinGroupByCode).mockResolvedValue('crew');
+    await render(<JoinScreen code="K7Q2MDXA" planId="legs" />);
+
+    expect(await screen.findByText('Maya invited you to Morning Crew')).toBeTruthy();
+    expect(screen.getByText('Maya is going')).toBeTruthy();
+    await user().press(screen.getByRole('button', { name: 'Join Morning Crew' }));
+
+    expect(joinGroupByCode).toHaveBeenCalledWith(ME, 'K7Q2MDXA');
+    expect(joinSharedPlan).toHaveBeenCalledWith(ME, 'crew', 'legs');
+    expect(router.replace).toHaveBeenCalledWith({
+      pathname: '/groups/[groupId]/plans/[planId]',
+      params: { groupId: 'crew', planId: 'legs' },
+    });
+  });
+
+  it('still works without a preview, and says why a join failed', async () => {
+    jest.mocked(getInvitePreview).mockResolvedValue(null);
+    jest.mocked(joinGroupByCode).mockRejectedValue(new Error('nope'));
+    await render(<JoinScreen code="OLDCODE1" planId={null} />);
+
+    await user().press(await screen.findByRole('button', { name: 'Join' }));
+    expect(
+      await screen.findByText('Couldn’t join. The link may have been reset, or it’s full.'),
+    ).toBeTruthy();
   });
 });

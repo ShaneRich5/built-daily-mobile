@@ -5,6 +5,7 @@ import { WorkoutScreen } from '@/components/session/workout-screen';
 import { useSession } from '@/contexts/session';
 import { bench, dips, fly, line, log, session } from '@/lib/session/session-test-helpers';
 import { confirm } from '@/services/confirm';
+import { findNextPlannedForPlan, saveLeftoverPlan } from '@/services/firestore/planner-repository';
 import { syncGroups } from '@/services/group-sync';
 import {
   deleteSession,
@@ -16,6 +17,7 @@ import type { WorkoutSession } from '@/types/workout';
 jest.mock('@/contexts/session');
 jest.mock('@/services/firestore/workout-repository');
 jest.mock('@/services/confirm');
+jest.mock('@/services/firestore/planner-repository');
 jest.mock('expo-router', () => ({
   router: { canGoBack: jest.fn(() => true), back: jest.fn(), replace: jest.fn(), push: jest.fn() },
 }));
@@ -48,6 +50,13 @@ const finished = () =>
 /** The patch handed to the most recent save. */
 const lastSave = () => mockedUpdate.mock.calls[mockedUpdate.mock.calls.length - 1][2];
 
+/** Finish, then confirm on the leftovers sheet that asks where untouched exercises go. */
+async function finishWithLeftovers() {
+  await user().press(screen.getByRole('button', { name: 'Finish workout' }));
+  const buttons = screen.getAllByRole('button', { name: 'Finish workout' });
+  await user().press(buttons[buttons.length - 1]);
+}
+
 beforeEach(() => {
   jest.useFakeTimers();
   history = [];
@@ -58,6 +67,8 @@ beforeEach(() => {
     return jest.fn();
   });
   mockedUpdate.mockResolvedValue(undefined);
+  jest.mocked(findNextPlannedForPlan).mockResolvedValue(null);
+  jest.mocked(saveLeftoverPlan).mockResolvedValue(undefined);
   mockedDelete.mockResolvedValue(undefined);
   mockedConfirm.mockResolvedValue(true);
 });
@@ -139,7 +150,7 @@ describe('a workout in progress', () => {
   it('finishes the workout', async () => {
     await render(<WorkoutScreen session={live()} mode="live" />);
 
-    await user().press(screen.getByRole('button', { name: 'Finish workout' }));
+    await finishWithLeftovers();
 
     expect(lastSave()).toMatchObject({ status: 'completed', endedAt: expect.any(Date) });
     // Groups see the day and the workout's name.
@@ -159,16 +170,53 @@ describe('a workout in progress', () => {
     await render(<WorkoutScreen session={withMaybe} mode="live" />);
 
     expect(screen.getByText('Maybe · 1')).toBeTruthy();
-    await user().press(screen.getByRole('button', { name: 'Finish workout' }));
+    await finishWithLeftovers();
 
     expect(lastSave().lines?.map((l) => l.nameSnapshot)).toEqual(['Bench']);
+  });
+
+  it('asks where untouched exercises go, and sends them to the next planned day', async () => {
+    const next = { entryId: 'e9', label: 'Push day', dateKey: '2026-11-30' };
+    jest.mocked(findNextPlannedForPlan).mockResolvedValue(next);
+    await render(<WorkoutScreen session={{ ...live(), planId: 'push' }} mode="live" />);
+
+    await user().press(screen.getByRole('button', { name: 'Finish workout' }));
+    expect(await screen.findByText(/’s in\.$/)).toBeTruthy();
+    expect(screen.getByText('You didn’t get to these')).toBeTruthy();
+    expect(await screen.findByRole('tab', { name: 'Next time' })).toBeTruthy();
+    const buttons = screen.getAllByRole('button', { name: 'Finish workout' });
+    await user().press(buttons[buttons.length - 1]);
+
+    expect(findNextPlannedForPlan).toHaveBeenCalledWith('user-1', 'push', expect.any(String));
+    expect(saveLeftoverPlan).toHaveBeenCalledWith('user-1', {
+      next,
+      nextIds: ['custom-fly'],
+      laterIds: [],
+      laterLabel: expect.stringMatching(/^Leftovers from /),
+    });
+    expect(lastSave()).toMatchObject({ status: 'completed' });
+  });
+
+  it('puts a leftover in Unscheduled with Later, or keeps going', async () => {
+    await render(<WorkoutScreen session={live()} mode="live" />);
+
+    await user().press(screen.getByRole('button', { name: 'Finish workout' }));
+    expect(screen.queryByRole('tab', { name: 'Next time' })).toBeNull();
+    await user().press(screen.getByRole('button', { name: 'Keep going' }));
+    expect(mockedUpdate.mock.calls.some((call) => call[2].status === 'completed')).toBe(false);
+
+    await finishWithLeftovers();
+    expect(saveLeftoverPlan).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ next: null, laterIds: ['custom-fly'] }),
+    );
   });
 
   it('writes nothing more once it has finished', async () => {
     await render(<WorkoutScreen session={live()} mode="live" />);
 
     await user().press(screen.getByRole('checkbox', { name: 'Set 2 done' }));
-    await user().press(screen.getByRole('button', { name: 'Finish workout' }));
+    await finishWithLeftovers();
     const writes = mockedUpdate.mock.calls.length;
     await waitForAutosave();
 

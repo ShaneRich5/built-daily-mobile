@@ -1,5 +1,6 @@
 import { findActivityType } from '@/lib/activity-catalog';
 import { dateFromKey } from '@/lib/date-keys';
+import { canonicalExerciseId } from '@/lib/exercise-catalog';
 import { isValidWorkoutTime } from '@/lib/session-edit';
 import { toDate } from '@/services/firestore/mappers';
 import {
@@ -66,8 +67,10 @@ export function toScheduledWorkout(id: string, raw: DocData): ScheduledWorkout |
   if (raw.planId != null && typeof raw.planId !== 'string') return null;
   if (!Array.isArray(raw.exerciseIds)) return null;
 
-  const exerciseIds = raw.exerciseIds.filter((x): x is string => typeof x === 'string');
-  if (exerciseIds.length !== raw.exerciseIds.length) return null;
+  const stored = raw.exerciseIds.filter((x): x is string => typeof x === 'string');
+  if (stored.length !== raw.exerciseIds.length) return null;
+  // Merged catalog ids read as the kept one, once.
+  const exerciseIds = [...new Set(stored.map(canonicalExerciseId))];
 
   const status = toStatus(raw.status);
 

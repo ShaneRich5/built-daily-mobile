@@ -394,3 +394,23 @@ export function fromNewSharedPlan(plan: Omit<SharedPlan, 'id'>): DocData | null 
     createdAt: plan.createdAt,
   };
 }
+
+/** What the plan's creator can change after the fact. */
+export type SharedPlanDetails = Pick<SharedPlan, 'time' | 'where' | 'note'>;
+
+/**
+ * The update for "Edit plan": time, place and note, tidied the same way as a
+ * new plan (as the web's `updateSharedPlanDetails`). Null for a time the rules
+ * would refuse.
+ */
+export function fromSharedPlanDetails(details: SharedPlanDetails): DocData | null {
+  const time = details.time?.trim() || null;
+  if (time !== null && !TIME.test(time)) return null;
+
+  const tidy = (value: string | null, max: number) => value?.trim().slice(0, max) || null;
+  return {
+    time,
+    where: tidy(details.where, SHARED_PLAN_LIMITS.where),
+    note: tidy(details.note, SHARED_PLAN_LIMITS.note),
+  };
+}

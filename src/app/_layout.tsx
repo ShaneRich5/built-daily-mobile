@@ -42,9 +42,12 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="session/[id]" />
         <Stack.Screen name="history" />
         <Stack.Screen name="exercises" />
+        <Stack.Screen name="settings" />
         <Stack.Screen name="templates/[planId]" />
         <Stack.Screen name="groups/[groupId]/index" />
         <Stack.Screen name="groups/[groupId]/plans/[planId]" />
+        {/* An invite link opened in the app: builtdailymobile://join/CODE?plan=ID */}
+        <Stack.Screen name="join/[code]" />
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
 

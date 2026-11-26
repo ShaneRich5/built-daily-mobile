@@ -1,9 +1,11 @@
 import {
+  canonicalExerciseId,
   catalogSections,
   EXERCISE_CATALOG,
   exerciseGroup,
   findCatalogExercise,
   isCustomExerciseId,
+  remapRetiredExercise,
   searchCatalog,
 } from '@/lib/exercise-catalog';
 import { resolveExerciseMuscles } from '@/lib/muscle-map';
@@ -104,5 +106,33 @@ describe('catalogSections', () => {
       0,
     );
     expect(total).toBe(EXERCISE_CATALOG.length);
+  });
+});
+
+describe('merged catalog entries', () => {
+  it('maps the retired machine ids onto the kept entries', () => {
+    expect(canonicalExerciseId('adductor-machine')).toBe('hip-adduction-machine');
+    expect(canonicalExerciseId('abductor-machine')).toBe('hip-abduction-machine');
+    expect(canonicalExerciseId('back-squat')).toBe('back-squat');
+    expect(findCatalogExercise('adductor-machine')?.name).toBe('Hip adduction machine');
+  });
+
+  it('renames a stored line only when its id was retired', () => {
+    expect(remapRetiredExercise('abductor-machine', 'Abductor machine')).toEqual({
+      exerciseId: 'hip-abduction-machine',
+      nameSnapshot: 'Hip abduction machine',
+    });
+    expect(remapRetiredExercise('custom-1', 'Sled push')).toEqual({
+      exerciseId: 'custom-1',
+      nameSnapshot: 'Sled push',
+    });
+  });
+
+  it('lists each machine once, and still finds it by its old name', () => {
+    const ids = searchCatalog('').map((exercise) => exercise.id);
+    expect(ids).not.toContain('adductor-machine');
+    expect(searchCatalog('adductor').map((exercise) => exercise.id)).toContain(
+      'hip-adduction-machine',
+    );
   });
 });

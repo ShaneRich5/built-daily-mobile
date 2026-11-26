@@ -13,7 +13,12 @@ import {
 
 import { displayNameFromAuth } from '@/lib/user-profile';
 import { getDb } from '@/services/firebase';
-import { fromNewSharedPlan, toSharedPlan } from '@/services/firestore/group-mappers';
+import {
+  fromNewSharedPlan,
+  fromSharedPlanDetails,
+  type SharedPlanDetails,
+  toSharedPlan,
+} from '@/services/firestore/group-mappers';
 import {
   addScheduledWorkout,
   deleteEntriesForSharedPlan,
@@ -162,6 +167,13 @@ export async function leaveSharedPlan(user: GroupUser, groupId: string, planId: 
   await removeSelfFromSharedPlan(user.uid, groupId, planId);
   await deleteEntriesForSharedPlan(user.uid, planId);
   syncGroups(user);
+}
+
+/** Creator only (the rules check): changes the time, the place or the note. Everyone going sees it. */
+export async function updateSharedPlanDetails(groupId: string, planId: string, details: SharedPlanDetails): Promise<void> {
+  const update = fromSharedPlanDetails(details);
+  if (!update) throw new PlanError('Use HH:MM for the time, like 07:00 or 18:30.');
+  await updateDoc(doc(getDb(), 'groups', groupId, 'plans', planId), update);
 }
 
 /** Cancels a plan together. Its creator only (the rules check). Others' planner entries stay theirs. */

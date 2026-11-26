@@ -70,7 +70,7 @@ describe('editing a template', () => {
     await render(<TemplateEditorScreen planId="push" />);
 
     expect(screen.getByDisplayValue('Push day')).toBeTruthy();
-    expect(screen.getByText('Exercises · 2')).toBeTruthy();
+    expect(screen.getByText('Plan · 2')).toBeTruthy();
     expect(screen.getByText('4 sets')).toBeTruthy();
   });
 
@@ -120,8 +120,57 @@ describe('editing a template', () => {
     await userEvent.press(screen.getByRole('button', { name: third.name }));
     await userEvent.press(screen.getByRole('button', { name: 'Add 1 exercise' }));
 
-    expect(screen.getByText('Exercises · 3')).toBeTruthy();
+    expect(screen.getByText('Plan · 3')).toBeTruthy();
     expect(screen.getAllByText('3 sets')).toHaveLength(2);
+  });
+
+  it('moves an exercise to Maybe, and saves the maybes after the plan', async () => {
+    mockedUpdate.mockResolvedValue(undefined);
+    await render(<TemplateEditorScreen planId="push" />);
+
+    await userEvent.press(screen.getByRole('button', { name: `Actions for ${first.name}` }));
+    await userEvent.press(screen.getByRole('button', { name: /^Move to Maybe/ }));
+    expect(screen.getByText('Plan · 1')).toBeTruthy();
+    expect(screen.getByText('Maybe · 1')).toBeTruthy();
+    await userEvent.press(screen.getByRole('button', { name: 'Save template' }));
+
+    const saved = mockedUpdate.mock.calls[0][1];
+    expect(saved.lines.map((line) => [line.lineId, line.section ?? 'plan'])).toEqual([
+      ['b', 'plan'],
+      ['a', 'maybe'],
+    ]);
+  });
+
+  it('adds a maybe straight from its own button', async () => {
+    await render(<TemplateEditorScreen planId="push" />);
+
+    const third = EXERCISE_CATALOG[2];
+    await userEvent.press(screen.getByRole('button', { name: 'Add a maybe' }));
+    await userEvent.press(screen.getByRole('button', { name: third.name }));
+    await userEvent.press(screen.getByRole('button', { name: 'Add 1 exercise' }));
+
+    expect(screen.getByText('Maybe · 1')).toBeTruthy();
+  });
+
+  it('gives an exercise an alternate, and can take it off again', async () => {
+    mockedUpdate.mockResolvedValue(undefined);
+    await render(<TemplateEditorScreen planId="push" />);
+
+    const third = EXERCISE_CATALOG[2];
+    await userEvent.press(screen.getByRole('button', { name: `Actions for ${first.name}` }));
+    await userEvent.press(screen.getByRole('button', { name: /^Add an alternate/ }));
+    expect(screen.getByRole('header', { name: 'Add an alternate' })).toBeTruthy();
+    await userEvent.press(screen.getByRole('button', { name: `Use ${third.name}` }));
+    expect(screen.getByText(`or ${third.name}`)).toBeTruthy();
+
+    await userEvent.press(screen.getByRole('button', { name: 'Save template' }));
+    expect(mockedUpdate.mock.calls[0][1].lines[0].alternates).toEqual([
+      { exerciseId: third.id, nameSnapshot: third.name, metric: third.metric },
+    ]);
+
+    await userEvent.press(screen.getByRole('button', { name: `Actions for ${first.name}` }));
+    await userEvent.press(screen.getByRole('button', { name: new RegExp(`^Remove ${third.name}`) }));
+    expect(screen.queryByText(`or ${third.name}`)).toBeNull();
   });
 
   it('asks before leaving with unsaved changes', async () => {

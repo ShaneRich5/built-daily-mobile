@@ -5,6 +5,7 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -14,6 +15,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 
+import { type LeftoverPlan, mergeExerciseIds, type NextPlannedDay } from '@/lib/session/leftovers';
 import { getDb } from '@/services/firebase';
 import { toScheduledWorkout } from '@/services/firestore/home-mappers';
 import {
@@ -93,6 +95,63 @@ export async function deleteScheduledWorkout(userId: string, entry: ScheduledWor
   }
 
   await deleteDoc(doc(getDb(), 'users', userId, 'scheduledWorkouts', entry.id));
+}
+
+/**
+ * The next open planned day for a template, strictly after `afterDateKey`.
+ * One equality query filtered in memory, so it needs no composite index — the
+ * same read as the web's `findNextPlannedForPlan`.
+ */
+export async function findNextPlannedForPlan(
+  userId: string,
+  planId: string,
+  afterDateKey: string,
+): Promise<NextPlannedDay | null> {
+  const entries = await getDocs(
+    query(collection(getDb(), 'users', userId, 'scheduledWorkouts'), where('planId', '==', planId)),
+  );
+
+  let next: NextPlannedDay | null = null;
+  for (const document of entries.docs) {
+    const entry = toScheduledWorkout(document.id, document.data());
+    if (!entry || entry.status !== 'planned' || !entry.dateKey || entry.dateKey <= afterDateKey) continue;
+    if (!next || entry.dateKey < next.dateKey) next = { entryId: entry.id, label: entry.label, dateKey: entry.dateKey };
+  }
+  return next;
+}
+
+/** Adds exercises to an open planner entry, skipping ones it already has (at most 40). */
+export async function appendExercisesToScheduledWorkout(
+  userId: string,
+  entryId: string,
+  exerciseIds: readonly string[],
+): Promise<void> {
+  const ref = doc(getDb(), 'users', userId, 'scheduledWorkouts', entryId);
+  const snapshot = await getDoc(ref);
+  if (!snapshot.exists()) return;
+
+  const stored = snapshot.data().exerciseIds;
+  const current = Array.isArray(stored) ? stored.filter((id): id is string => typeof id === 'string') : [];
+  // status and sessionId backfill entries made before those fields existed; the rules need them.
+  await updateDoc(ref, { exerciseIds: mergeExerciseIds(current, exerciseIds), status: 'planned', sessionId: null });
+}
+
+/**
+ * Where Finish sends the leftovers: some onto the next planned day, the rest
+ * into one Unscheduled entry. Each write stands alone, so one failing does not
+ * stop the other.
+ */
+export async function saveLeftoverPlan(userId: string, plan: LeftoverPlan): Promise<void> {
+  const writes: Promise<unknown>[] = [];
+  if (plan.next && plan.nextIds.length > 0) {
+    writes.push(appendExercisesToScheduledWorkout(userId, plan.next.entryId, plan.nextIds));
+  }
+  if (plan.laterIds.length > 0) {
+    writes.push(
+      addScheduledWorkout(userId, { dateKey: null, label: plan.laterLabel, planId: null, exerciseIds: plan.laterIds }),
+    );
+  }
+  await Promise.allSettled(writes);
 }
 
 /** The lifter's planner entries linked to one plan together. */

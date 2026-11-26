@@ -4,10 +4,12 @@ import {
   dateFromKey,
   dateKey,
   daysBetween,
+  endOfMonth,
   endOfWeek,
   longDayLabel,
   monthDayLabel,
   shortDayLabel,
+  startOfMonth,
   startOfWeek,
   weekdayIndex,
   weekdayShort,
@@ -103,5 +105,19 @@ describe('clockLabel', () => {
     expect(clockLabel(new Date(2026, 10, 10, 6, 5))).toBe('6:05 AM');
     expect(clockLabel(new Date(2026, 10, 10, 0, 30))).toBe('12:30 AM');
     expect(clockLabel(new Date(2026, 10, 10, 12, 0))).toBe('12:00 PM');
+  });
+});
+
+describe('startOfMonth / endOfMonth', () => {
+  it('finds the first and last day of the month', () => {
+    expect(startOfMonth('2026-11-24')).toBe('2026-11-01');
+    expect(endOfMonth('2026-11-24')).toBe('2026-11-30');
+    expect(endOfMonth('2026-12-02')).toBe('2026-12-31');
+    expect(endOfMonth('2028-02-03')).toBe('2028-02-29');
+  });
+
+  it('leaves a key that is not a day alone', () => {
+    expect(startOfMonth('soon')).toBe('soon');
+    expect(endOfMonth('soon')).toBe('soon');
   });
 });

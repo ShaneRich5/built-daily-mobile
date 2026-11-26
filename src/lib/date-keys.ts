@@ -130,3 +130,16 @@ export function clockLabel(date: Date): string {
 
   return `${hour12}:${String(date.getMinutes()).padStart(2, '0')} ${hours < 12 ? 'AM' : 'PM'}`;
 }
+
+/** The 1st of the key's calendar month. */
+export function startOfMonth(key: string): string {
+  const date = dateFromKey(key);
+  return date ? dateKey(new Date(date.getFullYear(), date.getMonth(), 1)) : key;
+}
+
+/** The last day of the key's calendar month. */
+export function endOfMonth(key: string): string {
+  const date = dateFromKey(key);
+  // Day 0 of the next month is the last day of this one.
+  return date ? dateKey(new Date(date.getFullYear(), date.getMonth() + 1, 0)) : key;
+}

@@ -4,6 +4,7 @@ import {
   fromInvitePreview,
   fromNewGroup,
   fromNewSharedPlan,
+  fromSharedPlanDetails,
   generateInviteCode,
   normalizeInviteCode,
   toCheer,
@@ -270,5 +271,25 @@ describe('plans together', () => {
       exercises: [{ id: 'squat', name: 'Back squat', sets: 20 }],
     });
     expect(toSharedPlan('p', { ...plan, createdAt: ts(AT), label: '' })).toBeNull();
+  });
+});
+
+describe('fromSharedPlanDetails', () => {
+  it('tidies the place and note, and treats blanks as none', () => {
+    expect(fromSharedPlanDetails({ time: ' 18:30 ', where: '  Iron Works ', note: '' })).toEqual({
+      time: '18:30',
+      where: 'Iron Works',
+      note: null,
+    });
+    expect(fromSharedPlanDetails({ time: '', where: null, note: 'x'.repeat(200) })).toEqual({
+      time: null,
+      where: null,
+      note: 'x'.repeat(140),
+    });
+  });
+
+  it('refuses a time the rules would', () => {
+    expect(fromSharedPlanDetails({ time: '25:00', where: null, note: null })).toBeNull();
+    expect(fromSharedPlanDetails({ time: '7pm', where: null, note: null })).toBeNull();
   });
 });

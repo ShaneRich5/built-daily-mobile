@@ -45,6 +45,7 @@ import {
   type GroupKind,
   type GroupMember,
   type GroupMembership,
+  type InvitePreview,
   type SharedPlan,
 } from '@/types/group';
 import type { WeeklyGoalTarget } from '@/types/progress';
@@ -404,3 +405,13 @@ export async function refreshInvitePreview(
   }
 }
 
+
+/**
+ * What the join page shows for a code: the group's name and first names. One
+ * doc by exact code (the rules allow get, never list). Null when there is none.
+ */
+export async function getInvitePreview(raw: string): Promise<InvitePreview | null> {
+  const code = normalizeInviteCode(raw);
+  if (code.length < 6) return null;
+  return toInvitePreview((await getDoc(doc(getDb(), 'invitePreviews', code))).data());
+}
