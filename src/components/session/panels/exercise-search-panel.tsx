@@ -25,7 +25,12 @@ export type ExerciseSearchMode =
   /** Pick several; they are added in the order tapped. `room` is how many more fit. */
   | { kind: 'add'; afterName: string | null; room: number }
   /** Pick one; it replaces `currentName` straight away. */
-  | { kind: 'replace'; currentName: string };
+  | {
+      kind: 'replace';
+      currentName: string;
+      /** Overrides "Change exercise" when the pick is not a swap, e.g. adding an alternate. */
+      heading?: { title: string; subtitle: string };
+    };
 
 type ExerciseSearchPanelProps = {
   mode: ExerciseSearchMode;
@@ -101,7 +106,7 @@ export function ExerciseSearchPanel({
   };
 
   const subtitle = isReplace
-    ? `Pick a replacement for ${mode.currentName}`
+    ? (mode.heading?.subtitle ?? `Pick a replacement for ${mode.currentName}`)
     : mode.afterName
       ? `Added after ${mode.afterName}, in the order you pick`
       : 'Added in the order you pick';
@@ -110,7 +115,7 @@ export function ExerciseSearchPanel({
     <SheetFrame
       fill
       flush
-      title={isReplace ? 'Change exercise' : 'Add exercises'}
+      title={isReplace ? (mode.heading?.title ?? 'Change exercise') : 'Add exercises'}
       subtitle={subtitle}
       footer={
         isReplace ? undefined : (

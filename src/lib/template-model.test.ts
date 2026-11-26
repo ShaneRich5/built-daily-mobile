@@ -1,9 +1,14 @@
 import { EXERCISE_CATALOG } from '@/lib/exercise-catalog';
 import {
+  addAlternate,
+  canAddAlternate,
   clampTargetSets,
   lineFromExercise,
   lineMeta,
-  moveLine,
+  moveLineInSection,
+  orderBySection,
+  removeAlternate,
+  setLineSection,
   targetSetsOf,
   templateProblem,
   templateToSave,
@@ -53,20 +58,6 @@ describe('target sets', () => {
   });
 });
 
-describe('moveLine', () => {
-  const lines = [line('a'), line('b'), line('c')];
-
-  it('swaps a line with its neighbour', () => {
-    expect(moveLine(lines, 1, -1).map((l) => l.lineId)).toEqual(['b', 'a', 'c']);
-    expect(moveLine(lines, 1, 1).map((l) => l.lineId)).toEqual(['a', 'c', 'b']);
-  });
-
-  it('does nothing off either end', () => {
-    expect(moveLine(lines, 0, -1).map((l) => l.lineId)).toEqual(['a', 'b', 'c']);
-    expect(moveLine(lines, 2, 1).map((l) => l.lineId)).toEqual(['a', 'b', 'c']);
-  });
-});
-
 describe('lineMeta', () => {
   it('says how the exercise is logged, and whether it has a note', () => {
     expect(lineMeta(line('a'))).toBe('Weight × reps');
@@ -111,7 +102,9 @@ describe('templateToSave', () => {
   });
 
   it('stores a blank note as null', () => {
-    expect(templateToSave('Push', [line('a', { notes: ' ' })], null, now).lines[0].notes).toBeNull();
+    expect(
+      templateToSave('Push', [line('a', { notes: ' ' })], null, now).lines[0].notes,
+    ).toBeNull();
   });
 });
 
@@ -120,5 +113,58 @@ describe('templateProblem', () => {
     expect(templateProblem(' ', [line('a')])).toBe('Give the template a name.');
     expect(templateProblem('Push', [])).toBe('Add at least one exercise.');
     expect(templateProblem('Push', [line('a')])).toBeNull();
+  });
+});
+
+describe('Plan and Maybe sections', () => {
+  const plan = [line('a'), line('m', { section: 'maybe' }), line('b')];
+  const ids = (lines: PlanLine[]) => lines.map((l) => l.lineId);
+
+  it('starts a line in Maybe when asked', () => {
+    expect(lineFromExercise(EXERCISE_CATALOG[0], () => 'x', 'maybe').section).toBe('maybe');
+    expect('section' in lineFromExercise(EXERCISE_CATALOG[0], () => 'x')).toBe(false);
+  });
+
+  it('lists plan lines first, then maybes, each in order', () => {
+    expect(ids(orderBySection(plan))).toEqual(['a', 'b', 'm']);
+  });
+
+  it('moves a line to the end of the other section, with no section field on a plan line', () => {
+    const toMaybe = setLineSection(plan, 'a', 'maybe');
+    expect(ids(toMaybe)).toEqual(['b', 'm', 'a']);
+    const back = setLineSection(toMaybe, 'm', 'plan');
+    expect(ids(back)).toEqual(['b', 'm', 'a']);
+    expect('section' in back[1]).toBe(false);
+  });
+
+  it('reorders within a section only', () => {
+    expect(ids(moveLineInSection(plan, 'b', -1))).toEqual(['b', 'a', 'm']);
+    expect(ids(moveLineInSection(plan, 'b', 1))).toEqual(['a', 'b', 'm']);
+    expect(ids(moveLineInSection(plan, 'm', -1))).toEqual(['a', 'b', 'm']);
+  });
+
+  it('saves maybes after the plan', () => {
+    const saved = templateToSave('Push', plan, null, new Date(2026, 0, 1));
+    expect(ids(saved.lines)).toEqual(['a', 'b', 'm']);
+  });
+});
+
+describe('alternates', () => {
+  const [, other, third] = EXERCISE_CATALOG;
+
+  it('adds an alternate once, never the exercise itself', () => {
+    const base = line('a', { exerciseId: EXERCISE_CATALOG[0].id });
+    const withOne = addAlternate(base, other);
+    expect(withOne.alternates).toEqual([
+      { exerciseId: other.id, nameSnapshot: other.name, metric: other.metric },
+    ]);
+    expect(addAlternate(withOne, other)).toBe(withOne);
+    expect(canAddAlternate(base, EXERCISE_CATALOG[0])).toBe(false);
+    expect(lineMeta(addAlternate(withOne, third))).toBe('Weight × reps · 2 alternates');
+  });
+
+  it('drops the field once the last alternate is removed', () => {
+    const withOne = addAlternate(line('a'), other);
+    expect('alternates' in removeAlternate(withOne, other.id)).toBe(false);
   });
 });
