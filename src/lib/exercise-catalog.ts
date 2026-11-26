@@ -240,9 +240,7 @@ export const EXERCISE_CATALOG: readonly CatalogExercise[] = [
   { id: 'cable-pull-through', name: 'Cable pull-through', metric: 'weight_reps' },
   { id: 'kb-swing', name: 'Kettlebell swing', metric: 'weight_reps' },
   { id: 'multi-hip-machine', name: 'Multi-hip machine', metric: 'weight_reps' },
-  { id: 'abductor-machine', name: 'Abductor machine', metric: 'weight_reps' },
   { id: 'hip-abduction-machine', name: 'Hip abduction machine', metric: 'weight_reps' },
-  { id: 'adductor-machine', name: 'Adductor machine', metric: 'weight_reps' },
   { id: 'hip-adduction-machine', name: 'Hip adduction machine', metric: 'weight_reps' },
 
   // --- Legs: calves ---
@@ -290,7 +288,36 @@ const BY_ID = new Map(EXERCISE_CATALOG.map((exercise) => [exercise.id, exercise]
  * to the line's own `nameSnapshot`.
  */
 export function findCatalogExercise(id: string): CatalogExercise | undefined {
-  return BY_ID.get(id);
+  return BY_ID.get(canonicalExerciseId(id));
+}
+
+/**
+ * Ids merged into another catalog entry — the same machine under two names.
+ * Old sessions, templates and planner entries still store them, so the read
+ * paths map them onto the kept id and history stays in one place. The same
+ * table as the web app's `lib/exercise-catalog.ts`.
+ */
+const RETIRED_EXERCISE_IDS: Record<string, string> = {
+  'adductor-machine': 'hip-adduction-machine',
+  'abductor-machine': 'hip-abduction-machine',
+};
+
+/** The kept id for a retired catalog id; any other id comes back unchanged. */
+export function canonicalExerciseId(id: string): string {
+  return RETIRED_EXERCISE_IDS[id] ?? id;
+}
+
+/**
+ * For a stored line: swaps a retired id, and the old name saved with it, for
+ * the kept catalog entry. Lines with current or custom ids pass through.
+ */
+export function remapRetiredExercise(
+  exerciseId: string,
+  nameSnapshot: string,
+): { exerciseId: string; nameSnapshot: string } {
+  const kept = canonicalExerciseId(exerciseId);
+  if (kept === exerciseId) return { exerciseId, nameSnapshot };
+  return { exerciseId: kept, nameSnapshot: BY_ID.get(kept)?.name ?? nameSnapshot };
 }
 
 /** `custom-{uuid}` ids are user-named moves, not catalog entries. */
@@ -334,6 +361,14 @@ function matchRank(exercise: CatalogExercise, needle: string): number | null {
   if (exercise.id.startsWith(needle)) return 3;
   if (name.includes(needle)) return 4;
   if (exercise.id.includes(needle)) return 5;
+  // "adductor" still finds the hip adduction machine it was merged into.
+  if (
+    Object.entries(RETIRED_EXERCISE_IDS).some(
+      ([retired, kept]) => kept === exercise.id && retired.includes(needle),
+    )
+  ) {
+    return 5;
+  }
 
   return null;
 }

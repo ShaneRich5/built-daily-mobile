@@ -197,9 +197,7 @@ const EXERCISE_MUSCLES: Record<string, MuscleTags> = {
   'kb-swing': { primary: ['gluteal'], secondary: ['hamstring', 'lower-back', 'abs'] },
   'multi-hip-machine': { primary: ['gluteal'], secondary: ['adductors'] },
   // The chart has no abductor region, so hip abduction reads on the glutes.
-  'abductor-machine': { primary: ['gluteal'] },
   'hip-abduction-machine': { primary: ['gluteal'] },
-  'adductor-machine': { primary: ['adductors'] },
   'hip-adduction-machine': { primary: ['adductors'] },
 
   // --- Legs: calves ---

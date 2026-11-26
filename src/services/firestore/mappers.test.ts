@@ -435,3 +435,25 @@ describe('fromSessionPatch', () => {
     });
   });
 });
+
+describe('merged catalog ids', () => {
+  it('reads an old adductor-machine line as the hip adduction machine', () => {
+    const session = toWorkoutSession('s1', {
+      status: 'completed',
+      title: 'Legs',
+      lines: [
+        {
+          lineId: 'l1',
+          exerciseId: 'adductor-machine',
+          nameSnapshot: 'Adductor machine',
+          metric: 'weight_reps',
+          sets: [],
+        },
+      ],
+    });
+    expect(session.lines[0]).toMatchObject({
+      exerciseId: 'hip-adduction-machine',
+      nameSnapshot: 'Hip adduction machine',
+    });
+  });
+});

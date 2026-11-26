@@ -1,3 +1,4 @@
+import { remapRetiredExercise } from '@/lib/exercise-catalog';
 import { lineGroupingFields, parseAlternates, parseLineSection } from '@/lib/line-grouping';
 import type {
   AlternateExercise,
@@ -92,8 +93,8 @@ function toLineGrouping(raw: DocData): {
 function toSessionLine(raw: DocData): SessionLine {
   return {
     lineId: String(raw.lineId ?? ''),
-    exerciseId: String(raw.exerciseId ?? ''),
-    nameSnapshot: String(raw.nameSnapshot ?? ''),
+    // A merged catalog id reads as the entry it was merged into.
+    ...remapRetiredExercise(String(raw.exerciseId ?? ''), String(raw.nameSnapshot ?? '')),
     metric: toMetric(raw.metric),
     sets: Array.isArray(raw.sets) ? raw.sets.map((set) => toSetLog(set as DocData)) : [],
     ...toLineGrouping(raw),
@@ -132,8 +133,7 @@ export function toWorkoutSession(id: string, raw: DocData): WorkoutSession {
 function toPlanLine(raw: DocData): PlanLine {
   return {
     lineId: String(raw.lineId ?? ''),
-    exerciseId: String(raw.exerciseId ?? ''),
-    nameSnapshot: String(raw.nameSnapshot ?? ''),
+    ...remapRetiredExercise(String(raw.exerciseId ?? ''), String(raw.nameSnapshot ?? '')),
     metric: toMetric(raw.metric),
     targetSets: num(raw.targetSets),
     notes: str(raw.notes),
