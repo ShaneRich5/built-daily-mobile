@@ -10,7 +10,7 @@ import { SectionLabel } from '@/components/ui/section-label';
 import { SheetFrame } from '@/components/ui/sheet';
 import { Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { ACTIVITY_CATALOG, findActivityType } from '@/lib/activity-catalog';
+import { findActivityType, pickableActivityTypes } from '@/lib/activity-catalog';
 import { dateFromKey } from '@/lib/date-keys';
 import { isValidWorkoutTime } from '@/lib/session-edit';
 import { confirm } from '@/services/confirm';
@@ -143,7 +143,7 @@ export function LogActivityPanel({ todayKey, activity, onSave, onDelete }: LogAc
         <View style={styles.section}>
           <SectionLabel>What</SectionLabel>
           <View style={styles.types}>
-            {ACTIVITY_CATALOG.map((candidate) => {
+            {pickableActivityTypes(activity?.activityTypeId).map((candidate) => {
               const selected = candidate.id === typeId;
 
               return (
