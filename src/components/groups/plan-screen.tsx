@@ -3,14 +3,15 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { failureMessage } from '@/components/groups/group-panels';
+import { EditPlanPanel } from '@/components/groups/edit-plan-panel';
+import { failureMessage, InvitePanel } from '@/components/groups/group-panels';
 import { Avatar } from '@/components/groups/group-ui';
 import { type MenuAction, MenuPanel } from '@/components/session/panels/list-panels';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { IconButton } from '@/components/ui/icon-button';
-import { ArrowLeftIcon, EllipsisIcon, PlayIcon, Trash2Icon } from '@/components/ui/icons';
+import { ArrowLeftIcon, EllipsisIcon, PencilLineIcon, PlayIcon, Trash2Icon, UserPlusIcon } from '@/components/ui/icons';
 import { SectionLabel } from '@/components/ui/section-label';
 import { SheetHost } from '@/components/ui/sheet';
 import { FontFamily, MaxContentWidth, Radius } from '@/constants/theme';
@@ -27,7 +28,9 @@ import {
   leaveSharedPlan,
   startableExerciseIds,
   subscribeToSharedPlan,
+  updateSharedPlanDetails,
 } from '@/services/firestore/group-plan-repository';
+import { refreshInvitePreview, resetInviteCode } from '@/services/firestore/group-repository';
 import type { SharedPlan } from '@/types/group';
 import type { ScheduledWorkout } from '@/types/planner';
 
@@ -44,7 +47,7 @@ export function PlanScreen({ groupId, planId }: { groupId: string; planId: strin
   const { startPlanned, isStarting } = useStartWorkout();
   const [plan, setPlan] = useState<{ key: string; plan: SharedPlan | null } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [panel, setPanel] = useState<'menu' | 'edit' | 'invite' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const key = `${groupId}/${planId}`;
@@ -130,7 +133,7 @@ export function PlanScreen({ groupId, planId }: { groupId: string; planId: strin
   };
 
   const cancelPlan = async () => {
-    setMenuOpen(false);
+    setPanel(null);
     if (!user) return;
     const ok = await confirm({
       title: `Cancel ${current.label}?`,
@@ -143,7 +146,16 @@ export function PlanScreen({ groupId, planId }: { groupId: string; planId: strin
     leave();
   };
 
-  const menu: MenuAction[] = [{ label: 'Cancel plan', icon: Trash2Icon, destructive: true, onPress: () => void cancelPlan() }];
+  const menu: MenuAction[] = [
+    { label: 'Edit plan', icon: PencilLineIcon, onPress: () => setPanel('edit') },
+    { label: 'Cancel plan', icon: Trash2Icon, destructive: true, onPress: () => void cancelPlan() },
+  ];
+
+  const openInvite = () => {
+    setPanel('invite');
+    // The link's signed-out preview lists the plans still ahead, this one included.
+    if (user) void refreshInvitePreview(user, group, members, data.plans);
+  };
 
   return (
     <SafeAreaView edges={['top']} style={[styles.root, { backgroundColor: theme.background }]}>
@@ -154,7 +166,7 @@ export function PlanScreen({ groupId, planId }: { groupId: string; planId: strin
             {groupDisplayName(group, members, myUid, data.buddyNickname)}
           </ThemedText>
           {isCreator ? (
-            <IconButton icon={EllipsisIcon} accessibilityLabel="Plan options" variant="plain" onPress={() => setMenuOpen(true)} />
+            <IconButton icon={EllipsisIcon} accessibilityLabel="Plan options" variant="plain" onPress={() => setPanel('menu')} />
           ) : (
             <View style={styles.spacer} />
           )}
@@ -207,6 +219,16 @@ export function PlanScreen({ groupId, planId }: { groupId: string; planId: strin
               </View>
             ))}
           </Card>
+          {!isPast ? (
+            <Button
+              label="Invite a friend to this"
+              icon={UserPlusIcon}
+              variant="ghost"
+              size="sm"
+              onPress={openInvite}
+              style={styles.inviteLink}
+            />
+          ) : null}
           {notYet.length > 0 ? (
             <ThemedText type="small" themeColor="textMuted">
               {joinNames(notYet)} {notYet.length === 1 ? 'hasn’t' : 'haven’t'} said yet. No pressure either way.
@@ -261,14 +283,56 @@ export function PlanScreen({ groupId, planId }: { groupId: string; planId: strin
         </View>
       ) : null}
 
-      <SheetHost visible={menuOpen} onClose={() => setMenuOpen(false)}>
-        <MenuPanel title={current.label} actions={menu} />
+      <SheetHost visible={panel !== null} onClose={() => setPanel(null)}>
+        {panel === 'menu' ? <MenuPanel title={current.label} actions={menu} /> : null}
+        {panel === 'edit' ? (
+          <EditPlanPanel
+            plan={current}
+            onSave={async (details) => {
+              try {
+                await updateSharedPlanDetails(groupId, planId, details);
+                setPanel(null);
+                return null;
+              } catch (failure) {
+                return failureMessage(failure, 'Couldn’t save. Check your connection and try again.');
+              }
+            }}
+          />
+        ) : null}
+        {panel === 'invite' ? (
+          <InvitePanel
+            groupName={groupDisplayName(group, members, myUid, data.buddyNickname)}
+            memberCount={group.memberCount}
+            maxMembers={group.maxMembers}
+            code={group.inviteCode}
+            plan={{ id: current.id, label: current.label }}
+            isOwner={group.createdBy === myUid}
+            onReset={async () => {
+              if (!user) return false;
+              const ok = await confirm({
+                title: 'Reset the code?',
+                message: 'The old code and link stop working.',
+                confirmLabel: 'Reset',
+              });
+              if (!ok) return true;
+              try {
+                await resetInviteCode(user.uid, group);
+                return true;
+              } catch {
+                return false;
+              }
+            }}
+          />
+        ) : null}
       </SheetHost>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  inviteLink: {
+    alignSelf: 'flex-start',
+  },
   root: {
     flex: 1,
   },
