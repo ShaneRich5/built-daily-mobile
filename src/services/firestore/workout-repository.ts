@@ -9,6 +9,7 @@ import {
   query,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 
 import {
@@ -185,4 +186,25 @@ export async function updateSession(
  */
 export async function deleteSession(userId: string, sessionId: string): Promise<void> {
   await deleteDoc(doc(getDb(), 'users', userId, 'sessions', sessionId));
+}
+
+/** Firestore allows 500 writes per batch; stay under it. */
+const DELETE_BATCH_SIZE = 400;
+
+/**
+ * Permanently deletes several workouts (History's select mode), in batches.
+ * Batches that already committed stay deleted if a later one fails; the live
+ * list shows what is left. Mirrors the web's `deleteHistoryItems`.
+ */
+export async function deleteSessions(userId: string, sessionIds: readonly string[]): Promise<void> {
+  const db = getDb();
+  const ids = sessionIds.filter(Boolean);
+
+  for (let i = 0; i < ids.length; i += DELETE_BATCH_SIZE) {
+    const batch = writeBatch(db);
+    for (const id of ids.slice(i, i + DELETE_BATCH_SIZE)) {
+      batch.delete(doc(db, 'users', userId, 'sessions', id));
+    }
+    await batch.commit();
+  }
 }
